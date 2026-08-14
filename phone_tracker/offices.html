@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offices — Phone GPS Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container container-wide">
+        <header class="page-header">
+            <div>
+                <h1>Offices</h1>
+                <p class="muted">All scheduled visits across college offices.</p>
+            </div>
+            <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+        </header>
+
+        <p class="login-error" id="listError" hidden></p>
+
+        <div class="table-wrap">
+            <table class="data-table" id="appointmentsTable">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Office</th>
+                        <th>Visitor</th>
+                        <th>Account</th>
+                        <th>Device / map</th>
+                        <th>Status</th>
+                        <th>Checked in</th>
+                    </tr>
+                </thead>
+                <tbody id="appointmentsBody">
+                    <tr><td colspan="7" class="muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        (function () {
+            if (!PhoneTrackerAuth.requireRole(["offices", "admin"])) {
+                return;
+            }
+
+            document.getElementById("logoutBtn").addEventListener("click", function () {
+                PhoneTrackerAuth.logout().then(function () {
+                    window.location.href = "login.html";
+                });
+            });
+
+            const tbody = document.getElementById("appointmentsBody");
+            const listError = document.getElementById("listError");
+
+            function esc(s) {
+                if (s == null) {
+                    return "";
+                }
+                return String(s)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
+            function statusMeta(rawStatus) {
+                var s = String(rawStatus || "").toLowerCase();
+                if (s === "checked_in") {
+                    return { label: "Active", cls: "status-active" };
+                }
+                if (s === "completed") {
+                    return { label: "Completed", cls: "status-completed" };
+                }
+                if (s === "cancelled") {
+                    return { label: "Cancelled", cls: "status-cancelled" };
+                }
+                return { label: "Not Active", cls: "status-pending" };
+            }
+
+            fetch("list_appointments.php", { credentials: "same-origin" })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        listError.textContent = (data && data.message) || "Could not load appointments.";
+                        listError.hidden = false;
+                        tbody.innerHTML = "";
+                        return;
+                    }
+                    const rows = data.data || [];
+                    if (rows.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="muted">No appointments yet.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = rows
+                        .map(function (row) {
+                            var st = statusMeta(row.status);
+                            return (
+                                "<tr>" +
+                                "<td>" + esc(row.appointment_at) + "</td>" +
+                                "<td>" + esc(row.office_label || row.office_code) + "</td>" +
+                                "<td>" + esc(row.visitor_full_name) + (row.visitor_email ? "<br><span class=\"muted small\">" + esc(row.visitor_email) + "</span>" : "") + "</td>" +
+                                "<td>" + esc(row.visitor_username || "—") + "</td>" +
+                                "<td>" + esc(row.device_name) + "</td>" +
+                                "<td><span class=\"status-badge " + esc(st.cls) + "\">" + esc(st.label) + "</span></td>" +
+                                "<td>" + esc(row.checked_in_at || "—") + "</td>" +
+                                "</tr>"
+                            );
+                        })
+                        .join("");
+                })
+                .catch(function () {
+                    listError.textContent = "Could not reach the server.";
+                    listError.hidden = false;
+                    tbody.innerHTML = "";
+                });
+        })();
+    </script>
+</body>
+</html>

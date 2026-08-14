@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone GPS Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+</head>
+<body>
+    <div class="container">
+        <header class="page-header page-header-tight">
+            <h1>Phone GPS Tracker</h1>
+            <nav class="header-actions">
+                <button type="button" id="menuBtn" class="button-secondary button-compact" aria-expanded="false" aria-controls="visitorMenuPanel">Menu</button>
+                <button type="button" id="logoutBtn" class="button-secondary button-compact">Sign out</button>
+            </nav>
+        </header>
+
+        <section class="panel">
+            <h2>Book an office visit</h2>
+            <p class="muted small">Choose a college office and date. After booking you will get a QR code for security to scan at the gate. GPS starts only after security checks in your QR.</p>
+            <form id="appointmentForm" class="appointment-form" novalidate>
+                <div class="form-row">
+                    <label for="officeCode">Office</label>
+                    <select id="officeCode" name="office_code" required>
+                        <option value="">Select office</option>
+                        <option value="CCI">CCI — Computing and Informatics</option>
+                        <option value="COED">COED — Education</option>
+                        <option value="CEA">CEA — Engineering and Architecture</option>
+                        <option value="CIT">CIT — Industrial Technology</option>
+                        <option value="CAS">CAS — Arts and Sciences</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="visitorFullName">Your full name</label>
+                    <input type="text" id="visitorFullName" name="visitor_full_name" autocomplete="name" required maxlength="150">
+                </div>
+                <div class="form-row">
+                    <label for="visitorEmail">Email (optional)</label>
+                    <input type="email" id="visitorEmail" name="visitor_email" autocomplete="email" maxlength="190">
+                </div>
+                <div class="form-row">
+                    <label for="appointmentAt">Visit date</label>
+                    <input type="date" id="appointmentAt" name="appointment_at" required>
+                </div>
+                <div class="form-row">
+                    <label for="deviceNameAppt">Device name on map (optional)</label>
+                    <input type="text" id="deviceNameAppt" maxlength="100" placeholder="Defaults to your name">
+                </div>
+                <p class="login-error" id="appointmentError" hidden></p>
+                <button type="submit" id="appointmentSubmit">Create appointment</button>
+            </form>
+            <div id="appointmentSuccess" class="appointment-success" hidden>
+                <p><strong>Appointment saved.</strong> Show this QR at security.</p>
+                <p class="muted small" id="visitCompleteNotice" hidden><strong>Visit complete.</strong> You may create a new appointment below.</p>
+                <div id="qrHost" class="qr-host"></div>
+                <p class="muted small token-line">Code: <code id="tokenDisplay"></code></p>
+                <p class="muted small" id="checkInHint">Waiting for security check-in scan.</p>
+                <p class="muted small" id="trackingStatus">Tracking status: standby.</p>
+                <div id="visitorMapPanel" hidden>
+                    <h3>Your live map</h3>
+                    <p class="muted small">This appears once security scans your QR code.</p>
+                    <div id="visitorMap"></div>
+                </div>
+                <p class="muted small"><button type="button" id="clearPassBtn" class="button-secondary button-small">Make another appointment</button></p>
+            </div>
+        </section>
+    </div>
+
+    <div class="menu-overlay" id="menuOverlay" hidden></div>
+    <aside class="menu-panel" id="visitorMenuPanel" hidden>
+        <div class="menu-panel-header">
+            <h2>My Appointments</h2>
+            <button type="button" id="menuCloseBtn" class="button-secondary button-small">Close</button>
+        </div>
+        <p class="muted small">Tap an appointment to show its QR code again.</p>
+        <div id="appointmentsList" class="appointments-list"></div>
+    </aside>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

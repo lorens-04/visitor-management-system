@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Phone GPS Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container container-wide">
+        <header class="page-header">
+            <div>
+                <h1>Admin dashboard</h1>
+                <p class="muted" id="adminWelcome">Manage users in MySQL (<code>app_users</code>)</p>
+            </div>
+            <nav class="header-actions">
+                <a class="link-button" href="dashboard.html">Monitor visitors</a>
+                <a class="link-button" href="offices.html">Appointments</a>
+                <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+            </nav>
+        </header>
+
+        <section class="panel">
+            <h2>Add user</h2>
+            <div class="form-row">
+                <label for="newUsername">Username</label>
+                <input type="text" id="newUsername" placeholder="login name" autocomplete="off" required>
+            </div>
+            <div class="form-row">
+                <label for="newPassword">Password</label>
+                <input type="password" id="newPassword" placeholder="min 6 characters" autocomplete="new-password" required>
+            </div>
+            <div class="form-row">
+                <label for="newDisplayName">Display name</label>
+                <input type="text" id="newDisplayName" placeholder="shown in lists" autocomplete="off">
+            </div>
+            <div class="form-row">
+                <label for="newUserRole">Role</label>
+                <select id="newUserRole">
+                    <option value="security">Security / Staff</option>
+                    <option value="visitor">Visitor</option>
+                    <option value="offices">Offices</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <p class="login-error" id="adminFormError" hidden></p>
+            <button type="button" id="addUserBtn">Add user</button>
+        </section>
+
+        <section class="panel">
+            <h2>Users</h2>
+            <p class="login-error" id="adminListError" hidden></p>
+            <div class="table-wrap">
+                <table class="data-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Display name</th>
+                            <th>Role</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody"></tbody>
+                </table>
+            </div>
+            <p class="muted small" id="usersEmpty" hidden>No users yet.</p>
+        </section>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        (function () {
+            if (!PhoneTrackerAuth.requireRole(["admin"])) {
+                return;
+            }
+
+            const dn = PhoneTrackerAuth.getDisplayName();
+            const un = PhoneTrackerAuth.getUsername();
+            if (dn || un) {
+                document.getElementById("adminWelcome").textContent =
+                    "Signed in as " + (dn || un) + " — users are stored in MySQL (app_users).";
+            }
+
+            function roleLabel(role) {
+                const map = {
+                    security: "Security / Staff",
+                    visitor: "Visitor",
+                    offices: "Offices",
+                    admin: "Admin",
+                };
+                return map[role] || role;
+            }
+
+            const usersBody = document.getElementById("usersBody");
+            const usersEmpty = document.getElementById("usersEmpty");
+            const adminListError = document.getElementById("adminListError");
+            const adminFormError = document.getElementById("adminFormError");
+
+            function showListError(msg) {
+                adminListError.textContent = msg || "";
+                adminListError.hidden = !msg;
+            }
+
+            function showFormError(msg) {
+                adminFormError.textContent = msg || "";
+                adminFormError.hidden = !msg;
+            }
+
+            function escapeHtml(s) {
+                const d = document.createElement("div");
+                d.textContent = s;
+                return d.innerHTML;
+            }
+
+            function escapeAttr(s) {
+                return String(s).replace(/"/g, "&quot;");
+            }
+
+            function loadUsers() {
+                showListError("");
+                return fetch("list_users.php", { credentials: "same-origin" })
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        if (!data || !data.success) {
+                            if (data && data.message === "Not authenticated") {
+                                window.location.href = "login.html";
+                                return;
+                            }
+                            showListError((data && data.message) || "Could not load users.");
+                            return;
+                        }
+                        const users = data.data || [];
+                        usersBody.innerHTML = "";
+                        users.forEach(function (u) {
+                            const tr = document.createElement("tr");
+                            const del =
+                                '<button type="button" class="button-danger button-small" data-id="' +
+                                escapeAttr(String(u.id)) +
+                                '">Remove</button>';
+                            tr.innerHTML =
+                                "<td>" +
+                                escapeHtml(u.username) +
+                                "</td><td>" +
+                                escapeHtml(u.display_name || "") +
+                                "</td><td>" +
+                                escapeHtml(roleLabel(u.role)) +
+                                "</td><td>" +
+                                del +
+                                "</td>";
+                            usersBody.appendChild(tr);
+                        });
+                        usersEmpty.hidden = users.length > 0;
+                    })
+                    .catch(function () {
+                        showListError("Network error loading users.");
+                    });
+            }
+
+            document.getElementById("addUserBtn").addEventListener("click", function () {
+                showFormError("");
+                const username = document.getElementById("newUsername").value.trim();
+                const password = document.getElementById("newPassword").value;
+                const displayName = document.getElementById("newDisplayName").value.trim();
+                const role = document.getElementById("newUserRole").value;
+
+                if (!username || !password) {
+                    showFormError("Username and password are required.");
+                    return;
+                }
+
+                document.getElementById("addUserBtn").disabled = true;
+                fetch("add_user.php", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        display_name: displayName,
+                        role: role,
+                    }),
+                })
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        if (!data || !data.success) {
+                            showFormError((data && data.message) || "Could not add user.");
+                            return;
+                        }
+                        document.getElementById("newUsername").value = "";
+                        document.getElementById("newPassword").value = "";
+                        document.getElementById("newDisplayName").value = "";
+                        loadUsers();
+                    })
+                    .catch(function () {
+                        showFormError("Network error.");
+                    })
+                    .finally(function () {
+                        document.getElementById("addUserBtn").disabled = false;
+                    });
+            });
+
+            usersBody.addEventListener("click", function (e) {
+                const btn = e.target.closest("button[data-id]");
+                if (!btn) {
+                    return;
+                }
+                const id = btn.getAttribute("data-id");
+                if (!confirm("Remove this user?")) {
+                    return;
+                }
+                fetch("delete_user.php", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: parseInt(id, 10) }),
+                })
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        if (!data || !data.success) {
+                            alert((data && data.message) || "Could not delete user.");
+                            return;
+                        }
+                        loadUsers();
+                    })
+                    .catch(function () {
+                        alert("Network error.");
+                    });
+            });
+
+            document.getElementById("logoutBtn").addEventListener("click", function () {
+                PhoneTrackerAuth.logout().then(function () {
+                    window.location.href = "login.html";
+                });
+            });
+
+            loadUsers();
+        })();
+    </script>
+</body>
+</html>

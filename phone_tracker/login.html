@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — Phone GPS Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container login-page">
+        <h1>Phone GPS Tracker</h1>
+
+        <div id="signInBlock">
+            <p class="login-subtitle">Sign in with your username and password.</p>
+            <form id="loginForm" class="login-form" novalidate>
+                <div class="form-row">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required>
+                </div>
+                <div class="form-row">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
+                <p class="login-error" id="loginError" hidden></p>
+                <button type="submit" class="login-submit" id="signInBtn">Sign in</button>
+            </form>
+            <p class="login-footnote login-footnote-tight">New here? <a href="#" class="link-like" id="showRegisterBtn" role="button">Create an account</a></p>
+        </div>
+
+        <div id="registerBlock" hidden>
+            <p class="login-subtitle">Register: choose username, password, and account type.</p>
+            <form id="registerForm" class="login-form" novalidate>
+                <div class="form-row">
+                    <label for="regUsername">Username</label>
+                    <input type="text" id="regUsername" name="reg_username" autocomplete="username" required maxlength="64" pattern="[a-zA-Z0-9_]+" title="Letters, numbers, and underscores only">
+                </div>
+                <div class="form-row">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" name="reg_password" autocomplete="new-password" required minlength="8">
+                </div>
+                <div class="form-row">
+                    <label for="regDisplayName">Display name (optional)</label>
+                    <input type="text" id="regDisplayName" name="reg_display_name" maxlength="100" placeholder="Defaults to username">
+                </div>
+                <div class="form-row">
+                    <label for="regRole">Account type</label>
+                    <select id="regRole" name="reg_role" required>
+                        <option value="">Select type</option>
+                        <option value="visitor">Visitor</option>
+                        <option value="office">Office (college staff)</option>
+                        <option value="staff">Staff (security)</option>
+                    </select>
+                </div>
+                <div class="form-row" id="regCollegeRow" hidden>
+                    <label for="regOfficeCode">College</label>
+                    <select id="regOfficeCode" name="reg_office_code">
+                        <option value="">Select college</option>
+                        <option value="CCI">CCI — Computing and Informatics</option>
+                        <option value="COED">COED — Education</option>
+                        <option value="CEA">CEA — Engineering and Architecture</option>
+                        <option value="CIT">CIT — Industrial Technology</option>
+                        <option value="CAS">CAS — Arts and Sciences</option>
+                    </select>
+                </div>
+                <p class="login-error" id="registerError" hidden></p>
+                <button type="submit" class="login-submit" id="registerBtn">Create account</button>
+            </form>
+            <p class="login-footnote login-footnote-tight"><a href="#" class="link-like" id="showSignInBtn" role="button">Back to sign in</a></p>
+        </div>
+
+        <p class="login-footnote">Accounts are stored in MySQL (<code>app_users</code>). Run <code>login_users.sql</code> and <code>app_users_office_code_migration.sql</code> on existing databases. Admin accounts are not created through this page.</p>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        const redirects = {
+            security: "dashboard.html",
+            visitor: "index.html",
+            offices: "offices.html",
+            admin: "admin.html",
+        };
+
+        const signInBlock = document.getElementById("signInBlock");
+        const registerBlock = document.getElementById("registerBlock");
+        const loginError = document.getElementById("loginError");
+        const registerError = document.getElementById("registerError");
+        const signInBtn = document.getElementById("signInBtn");
+        const registerBtn = document.getElementById("registerBtn");
+        const loginForm = document.getElementById("loginForm");
+        const registerForm = document.getElementById("registerForm");
+        const regRole = document.getElementById("regRole");
+        const regCollegeRow = document.getElementById("regCollegeRow");
+        const regOfficeCode = document.getElementById("regOfficeCode");
+
+        function showError(el, msg) {
+            el.textContent = msg || "";
+            el.hidden = !msg;
+        }
+
+        function redirectToRole(role) {
+            const target = redirects[role] || "index.html";
+            const sep = target.indexOf("?") === -1 ? "?" : "&";
+            window.location.href = target + sep + "role=" + encodeURIComponent(role);
+        }
+
+        document.getElementById("showRegisterBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            signInBlock.hidden = true;
+            registerBlock.hidden = false;
+            showError(loginError, "");
+            showError(registerError, "");
+        });
+        document.getElementById("showSignInBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            registerBlock.hidden = true;
+            signInBlock.hidden = false;
+            showError(loginError, "");
+            showError(registerError, "");
+        });
+
+        function syncCollegeRow() {
+            const isOffice = regRole.value === "office";
+            regCollegeRow.hidden = !isOffice;
+            regOfficeCode.required = isOffice;
+            if (!isOffice) {
+                regOfficeCode.value = "";
+            }
+        }
+        regRole.addEventListener("change", syncCollegeRow);
+        syncCollegeRow();
+
+        fetch("session_status.php", {
+            credentials: "same-origin",
+        })
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (data) {
+                if (!data || !data.authenticated || !data.role) {
+                    return;
+                }
+                PhoneTrackerAuth.setSessionFromLogin(data);
+                redirectToRole(data.role);
+            })
+            .catch(function () {});
+
+        loginForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            showError(loginError, "");
+
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value;
+
+            if (!username || !password) {
+                showError(loginError, "Enter username and password.");
+                return;
+            }
+
+            signInBtn.disabled = true;
+            fetch("login.php", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                }),
+            })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        showError(loginError, (data && data.message) || "Sign in failed.");
+                        return;
+                    }
+                    PhoneTrackerAuth.setSessionFromLogin(data);
+                    redirectToRole(data.role);
+                })
+                .catch(function () {
+                    showError(loginError, "Could not reach the server. Use http://localhost/.../login.html (not file://).");
+                })
+                .finally(function () {
+                    signInBtn.disabled = false;
+                });
+        });
+
+        registerForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            showError(registerError, "");
+
+            const username = document.getElementById("regUsername").value.trim();
+            const password = document.getElementById("regPassword").value;
+            const displayName = document.getElementById("regDisplayName").value.trim();
+            const role = regRole.value;
+            const officeCode = regOfficeCode.value.trim();
+
+            if (!username || !password) {
+                showError(registerError, "Enter username and password.");
+                return;
+            }
+            if (!role) {
+                showError(registerError, "Choose account type.");
+                return;
+            }
+            if (role === "office" && !officeCode) {
+                showError(registerError, "Select your college for an office account.");
+                return;
+            }
+
+            registerBtn.disabled = true;
+            fetch("register.php", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    display_name: displayName,
+                    role: role,
+                    office_code: officeCode,
+                }),
+            })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        showError(registerError, (data && data.message) || "Registration failed.");
+                        return;
+                    }
+                    showError(registerError, "");
+                    alert(data.message || "Account created. You can sign in now.");
+                    registerBlock.hidden = true;
+                    signInBlock.hidden = false;
+                    document.getElementById("username").value = username;
+                    document.getElementById("password").value = "";
+                    registerForm.reset();
+                    syncCollegeRow();
+                })
+                .catch(function () {
+                    showError(registerError, "Could not reach the server.");
+                })
+                .finally(function () {
+                    registerBtn.disabled = false;
+                });
+        });
+    </script>
+</body>
+</html>

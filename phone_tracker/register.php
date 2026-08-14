@@ -1,0 +1,155 @@
+<?php
+header("Content-Type: application/json; charset=utf-8");
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    http_response_code(405);
+    echo json_encode(["success" => false, "message" => "Method not allowed"]);
+    exit;
+}
+
+require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/appointment_offices.php";
+
+$raw = file_get_contents("php://input");
+$input = json_decode($raw, true);
+if (!is_array($input)) {
+    echo json_encode(["success" => false, "message" => "Invalid request body"]);
+    exit;
+}
+
+$username = isset($input["username"]) ? trim((string) $input["username"]) : "";
+$password = isset($input["password"]) ? (string) $input["password"] : "";
+$roleRaw = isset($input["role"]) ? strtolower(trim((string) $input["role"])) : "";
+$officeCode = isset($input["office_code"]) ? strtoupper(trim((string) $input["office_code"])) : "";
+$displayName = isset($input["display_name"]) ? trim((string) $input["display_name"]) : "";
+
+$roleMap = [
+    "visitor" => "visitor",
+    "office" => "offices",
+    "offices" => "offices",
+    "staff" => "security",
+    "security" => "security",
+];
+
+if ($username === "" || $password === "") {
+    echo json_encode(["success" => false, "message" => "Enter username and password"]);
+    exit;
+}
+
+if (strlen($username) < 3 || strlen($username) > 64) {
+    echo json_encode(["success" => false, "message" => "Username must be 3–64 characters"]);
+    exit;
+}
+
+if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+    echo json_encode(["success" => false, "message" => "Username may only contain letters, numbers, and underscores"]);
+    exit;
+}
+
+if (strlen($password) < 8) {
+    echo json_encode(["success" => false, "message" => "Password must be at least 8 characters"]);
+    exit;
+}
+
+if ($roleRaw === "" || !isset($roleMap[$roleRaw])) {
+    echo json_encode(["success" => false, "message" => "Choose account type: visitor, office, or staff"]);
+    exit;
+}
+
+$role = $roleMap[$roleRaw];
+if ($role === "admin") {
+    echo json_encode(["success" => false, "message" => "Invalid account type"]);
+    exit;
+}
+
+$offices = appointment_office_map();
+$officeForDb = "";
+
+if ($role === "offices") {
+    if ($officeCode === "" || !isset($offices[$officeCode])) {
+        echo json_encode(["success" => false, "message" => "Select your college for an office account"]);
+        exit;
+    }
+    $officeForDb = $officeCode;
+} else {
+    $officeForDb = "";
+}
+
+if ($displayName === "") {
+    $displayName = $username;
+}
+if (strlen($displayName) > 100) {
+    $displayName = substr($displayName, 0, 100);
+}
+
+$hash = password_hash($password, PASSWORD_DEFAULT);
+if ($hash === false) {
+    echo json_encode(["success" => false, "message" => "Could not hash password"]);
+    exit;
+}
+
+$stmt = $conn->prepare(
+    "INSERT INTO app_users (username, password_hash, display_name, role, office_code, is_active) VALUES (?, ?, ?, ?, ?, 1)"
+);
+if (!$stmt) {
+    $fallback = $conn->prepare(
+        "INSERT INTO app_users (username, password_hash, display_name, role, is_active) VALUES (?, ?, ?, ?, 1)"
+    );
+    if (!$fallback) {
+        echo json_encode(["success" => false, "message" => "Server error"]);
+        exit;
+    }
+    if ($role === "offices") {
+        $conn->close();
+        echo json_encode(["success" => false, "message" => "Database needs migration: run app_users_office_code_migration.sql"]);
+        exit;
+    }
+    $fallback->bind_param("ssss", $username, $hash, $displayName, $role);
+    if (!$fallback->execute()) {
+        $err = $fallback->errno;
+        $fallback->close();
+        $conn->close();
+        if ($err === 1062) {
+            echo json_encode(["success" => false, "message" => "That username is already taken"]);
+            exit;
+        }
+        echo json_encode(["success" => false, "message" => "Could not create account"]);
+        exit;
+    }
+    $newId = (int) $conn->insert_id;
+    $fallback->close();
+    $conn->close();
+    echo json_encode([
+        "success" => true,
+        "message" => "Account created. You can sign in now.",
+        "user_id" => $newId,
+        "role" => $role,
+        "username" => $username,
+    ]);
+    exit;
+}
+
+$stmt->bind_param("sssss", $username, $hash, $displayName, $role, $officeForDb);
+if (!$stmt->execute()) {
+    $err = $stmt->errno;
+    $stmt->close();
+    $conn->close();
+    if ($err === 1062) {
+        echo json_encode(["success" => false, "message" => "That username is already taken"]);
+        exit;
+    }
+    echo json_encode(["success" => false, "message" => "Could not create account"]);
+    exit;
+}
+
+$newId = (int) $conn->insert_id;
+$stmt->close();
+$conn->close();
+
+echo json_encode([
+    "success" => true,
+    "message" => "Account created. You can sign in now.",
+    "user_id" => $newId,
+    "role" => $role,
+    "username" => $username,
+]);

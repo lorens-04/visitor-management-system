@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan visitor QR — Phone GPS Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <div>
+                <h1>Scan visitor pass</h1>
+                <p class="muted">Point the camera at the visitor QR code or enter the code manually.</p>
+            </div>
+            <nav class="header-actions">
+                <a class="link-button" href="dashboard.html">Dashboard</a>
+                <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+            </nav>
+        </header>
+
+        <div id="reader" class="qr-reader"></div>
+
+        <div class="panel">
+            <h2>Manual entry</h2>
+            <label for="tokenInput">64-character code</label>
+            <input type="text" id="tokenInput" autocomplete="off" spellcheck="false" placeholder="Paste code from visitor screen">
+            <button type="button" id="submitTokenBtn">Check in</button>
+        </div>
+
+        <div class="status-box" id="scanResult" hidden>
+            <p id="scanResultText"></p>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        (function () {
+            if (!PhoneTrackerAuth.requireRole(["security", "admin"])) {
+                return;
+            }
+
+            document.getElementById("logoutBtn").addEventListener("click", function () {
+                PhoneTrackerAuth.logout().then(function () {
+                    window.location.href = "login.html";
+                });
+            });
+
+            const scanResult = document.getElementById("scanResult");
+            const scanResultText = document.getElementById("scanResultText");
+            const tokenInput = document.getElementById("tokenInput");
+
+            function normalizeToken(raw) {
+                if (!raw || typeof raw !== "string") {
+                    return "";
+                }
+                const t = raw.trim();
+                const hexOnly = t.replace(/[^a-f0-9]/gi, "");
+                if (hexOnly.length === 64) {
+                    return hexOnly.toLowerCase();
+                }
+                const m = t.match(/token=([a-f0-9]{64})/i);
+                if (m) {
+                    return m[1].toLowerCase();
+                }
+                return "";
+            }
+
+            function showResult(ok, message) {
+                scanResult.hidden = false;
+                scanResultText.textContent = message;
+                scanResult.style.borderLeft = ok ? "4px solid #16a34a" : "4px solid #dc2626";
+            }
+
+            let lastSentToken = "";
+            let lastSentAt = 0;
+
+            function checkIn(token) {
+                const t = normalizeToken(token);
+                if (t.length !== 64) {
+                    showResult(false, "That code does not look valid (need 64 hex characters).");
+                    return;
+                }
+
+                const now = Date.now();
+                if (t === lastSentToken && now - lastSentAt < 4000) {
+                    return;
+                }
+                lastSentToken = t;
+                lastSentAt = now;
+
+                fetch("scan_appointment.php", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token: t }),
+                })
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        if (!data || !data.success) {
+                            showResult(false, (data && data.message) || "Check-in failed.");
+                            return;
+                        }
+                        const extra = data.visitor_full_name
+                            ? " Visitor: " + data.visitor_full_name + ". Map device: " + (data.device_name || "-") + "."
+                            : "";
+                        showResult(true, (data.message || "OK") + extra);
+                        window.setTimeout(function () {
+                            window.location.href = "dashboard.html";
+                        }, 700);
+                    })
+                    .catch(function () {
+                        showResult(false, "Could not reach the server.");
+                    });
+            }
+
+            document.getElementById("submitTokenBtn").addEventListener("click", function () {
+                checkIn(tokenInput.value);
+            });
+
+            const readerId = "reader";
+            const html5 = new Html5Qrcode(readerId);
+            const config = { fps: 10, qrbox: { width: 260, height: 260 } };
+
+            function cameraPriority(cam) {
+                const lbl = (cam && cam.label ? cam.label : "").toLowerCase();
+                if (lbl.indexOf("back") !== -1 || lbl.indexOf("rear") !== -1 || lbl.indexOf("environment") !== -1) {
+                    return 0;
+                }
+                if (lbl.indexOf("front") !== -1 || lbl.indexOf("user") !== -1 || lbl.indexOf("facetime") !== -1) {
+                    return 2;
+                }
+                return 1;
+            }
+
+            function startScanner(cameraId) {
+                return html5.start(
+                    cameraId,
+                    config,
+                    function (decodedText) {
+                        checkIn(decodedText);
+                    },
+                    function () {}
+                );
+            }
+
+            Html5Qrcode.getCameras()
+                .then(function (devices) {
+                    if (!devices || devices.length === 0) {
+                        showResult(false, "No camera found. Use manual entry.");
+                        return;
+                    }
+                    const sorted = devices.slice().sort(function (a, b) {
+                        return cameraPriority(a) - cameraPriority(b);
+                    });
+                    startScanner(sorted[0].id).catch(function (err) {
+                        showResult(false, "Camera error: " + (err && err.message ? err.message : String(err)));
+                    });
+                })
+                .catch(function () {
+                    showResult(false, "Camera permission denied or not available. Use manual entry.");
+                });
+        })();
+    </script>
+</body>
+</html>
