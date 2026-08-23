@@ -41,8 +41,8 @@ if (strlen($username) < 3 || strlen($username) > 64) {
     exit;
 }
 
-if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
-    echo json_encode(["success" => false, "message" => "Username may only contain letters, numbers, and underscores"]);
+if (!preg_match('/^[a-zA-Z0-9_]+$/', $username) && !filter_var($username, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(["success" => false, "message" => "Enter a valid email address"]);
     exit;
 }
 
