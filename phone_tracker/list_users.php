@@ -5,7 +5,7 @@ require_once __DIR__ . "/session_bootstrap.php";
 require_admin_json();
 
 $stmt = $conn->prepare(
-    "SELECT id, username, display_name, role, is_active, created_at FROM app_users ORDER BY id ASC"
+    "SELECT id, username, display_name, role, office_code, is_active, created_at FROM app_users ORDER BY id ASC"
 );
 $stmt->execute();
 $result = $stmt->get_result();
@@ -16,6 +16,7 @@ while ($row = $result->fetch_assoc()) {
         "username" => $row["username"],
         "display_name" => $row["display_name"],
         "role" => $row["role"],
+        "office_code" => $row["office_code"],
         "is_active" => (int) $row["is_active"],
         "created_at" => $row["created_at"],
     ];

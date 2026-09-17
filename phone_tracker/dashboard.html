@@ -3,67 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tracker Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+    <title>ISATU Security Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=20260917-3">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
-<body>
-    <div class="container container-wide">
-        <header class="page-header">
-            <div>
-                <h1>Tracker Dashboard</h1>
-                <p class="muted" id="roleHint">Monitor visitors and routes</p>
+<body class="admin-page security-page">
+    <header class="admin-topbar">
+        <a class="admin-brand" href="dashboard.html?v=20260917-3" aria-label="ISATU Security Dashboard home">
+            <span class="admin-brand-mark" aria-hidden="true">
+                <img src="assets/images/isatu-logo.png" alt="">
+            </span>
+            <span>ISATU Security Dashboard</span>
+        </a>
+
+        <div class="admin-topbar-actions">
+            <button class="admin-profile-button" id="securityProfileBtn" type="button" aria-expanded="false" aria-controls="securityProfileMenu">
+                <span class="admin-avatar" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+                </span>
+                <span class="admin-profile-copy">
+                    <strong id="securityProfileName">Security Desk</strong>
+                    <small id="securityRoleLabel">Security</small>
+                </span>
+                <svg class="admin-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+            </button>
+            <div class="admin-profile-menu" id="securityProfileMenu" hidden>
+                <p>Signed in as <strong id="securityProfileUsername">security</strong></p>
+                <a class="security-admin-link" id="securityAdminLink" href="admin.html?v=20260917-2" hidden>Open Admin Dashboard</a>
+                <button type="button" id="logoutBtn">Sign out</button>
             </div>
-            <nav class="header-actions">
-                <a class="link-button" href="security_scan.html">Scan QR</a>
-                <a class="link-button" id="adminLink" href="admin.html" hidden>Admin</a>
-                <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+        </div>
+    </header>
+
+    <div class="admin-layout security-layout">
+        <aside class="admin-sidebar security-sidebar" aria-label="Security navigation">
+            <nav>
+                <button class="admin-nav-item is-active" type="button" data-security-view="dashboard">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+                    <span>Security Dashboard</span>
+                </button>
+                <button class="admin-nav-item" type="button" data-security-view="monitoring">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-4.5 7-12a7 7 0 1 0-14 0c0 7.5 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                    <span>Visitor Monitoring</span>
+                </button>
             </nav>
-        </header>
+        </aside>
 
-        <div class="controls">
-            <label for="visitorSelect">Visitor:</label>
-            <select id="visitorSelect">
-                <option value="">Select Visitor</option>
-            </select>
+        <main class="admin-main security-main">
+            <section class="admin-view security-view" id="securityDashboardView" data-security-panel="dashboard">
+                <div class="admin-mobile-heading">
+                    <p class="admin-eyebrow">Overview</p>
+                    <h1>Security Dashboard</h1>
+                </div>
 
-            <label for="visitDate">Date:</label>
-            <select id="visitDate">
-                <option value="">Select Date</option>
-            </select>
+                <div class="security-overview-row">
+                    <div class="security-stat-grid" aria-label="Today's visitor summary">
+                        <button class="security-stat-card" type="button" data-security-filter="checked_in">
+                            <span>Visitors Inside<br>Campus</span>
+                            <strong id="insideCampusCount">0</strong>
+                        </button>
+                        <button class="security-stat-card" type="button" data-security-type-filter="walk-in">
+                            <span>Walk-In Visitors<br>Today</span>
+                            <strong id="walkInTodayCount">0</strong>
+                        </button>
+                        <button class="security-stat-card" type="button" data-security-type-filter="appointment">
+                            <span>Appointment<br>Visitors Today</span>
+                            <strong id="appointmentTodayCount">0</strong>
+                        </button>
+                        <button class="security-stat-card" type="button" data-security-filter="completed">
+                            <span>Visitors Checked<br>Out</span>
+                            <strong id="checkedOutTodayCount">0</strong>
+                        </button>
+                    </div>
+                    <a class="security-scan-card" href="security_scan.html?v=20260917-3">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM14 14h2v2h-2z"/></svg>
+                        <span>Scan QR</span>
+                    </a>
+                </div>
 
-            <button id="applyFiltersBtn">Apply Filters</button>
-        </div>
+                <section class="security-table-card" aria-labelledby="securityVisitorTableTitle">
+                    <div class="security-table-toolbar">
+                        <div>
+                            <h1 class="sr-only" id="securityVisitorTableTitle">Visitor records</h1>
+                            <label class="admin-search security-search" for="securityVisitorSearch">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                                <input id="securityVisitorSearch" type="search" placeholder="Search visitor" autocomplete="off">
+                            </label>
+                        </div>
+                        <div class="security-filter-group">
+                            <label for="securityStatusFilter">Status</label>
+                            <select id="securityStatusFilter">
+                                <option value="">All</option>
+                                <option value="checked_in">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Checked out</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            <button type="button" id="securityRefreshBtn" title="Refresh visitor records" aria-label="Refresh visitor records">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 8a7 7 0 0 1 11.8-2L20 8M4 16l2.1 2A7 7 0 0 0 18 16"/></svg>
+                            </button>
+                        </div>
+                    </div>
 
-        <section class="panel">
-            <h2>Active Visits</h2>
-            <p class="muted small">Security can end a visit to stop tracking and mark the appointment as complete.</p>
-            <p class="muted small">
-                <span class="status-badge status-active">Active</span>
-                <span class="status-badge status-pending">Not Active</span>
-                <span class="status-badge status-completed">Completed</span>
-            </p>
-            <div id="activeVisitsList" class="appointments-list"></div>
-        </section>
+                    <p class="admin-message is-error" id="securityDashboardError" role="alert" hidden></p>
+                    <div class="admin-table-wrap security-table-wrap">
+                        <table class="admin-table security-table">
+                            <thead>
+                                <tr>
+                                    <th>Registration ID</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Reason for Visiting</th>
+                                    <th>Destination</th>
+                                    <th>Subject / Concern</th>
+                                    <th>Time In</th>
+                                    <th>Time Out</th>
+                                    <th><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="securityVisitorsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="admin-empty-state security-empty" id="securityVisitorsEmpty" hidden>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 8h5M19.5 5.5v5"/></svg>
+                        <strong>No visitor records yet</strong>
+                        <span>Appointments will appear here when visitors submit them.</span>
+                    </div>
+                    <div class="admin-pagination security-pagination">
+                        <p id="securityVisitorsShowing">Showing 0 visitors</p>
+                        <div class="admin-page-buttons" id="securityPageButtons" aria-label="Visitor list pages"></div>
+                    </div>
+                </section>
+            </section>
 
-        <div class="status-box">
-            <p><strong>Device:</strong> <span id="device">-</span></p>
-            <p><strong>Selected Date:</strong> <span id="selectedDate">-</span></p>
-            <p><strong>Start Point:</strong> <span id="startCoords">-</span></p>
-            <p><strong>Start Time:</strong> <span id="startTime">-</span></p>
-            <p><strong>End Point:</strong> <span id="endCoords">-</span></p>
-            <p><strong>End Time:</strong> <span id="endTime">-</span></p>
-        </div>
+            <section class="admin-view security-view security-monitoring-view" id="securityMonitoringView" data-security-panel="monitoring" hidden>
+                <div class="security-map-shell">
+                    <div id="securityMap" aria-label="Live visitor monitoring map"></div>
 
-        <div id="map"></div>
+                    <section class="security-map-controls" aria-label="Map filters">
+                        <div class="security-map-control-header">
+                            <div>
+                                <p class="admin-eyebrow">Live map</p>
+                                <h2>Visitor Monitoring</h2>
+                            </div>
+                            <span class="security-live-indicator"><i></i> Live</span>
+                        </div>
+                        <label for="monitorVisitorSelect">
+                            <span>Active visitor</span>
+                            <select id="monitorVisitorSelect">
+                                <option value="">All active visitors</option>
+                            </select>
+                        </label>
+                        <label for="monitorDateSelect">
+                            <span>Route date</span>
+                            <select id="monitorDateSelect" disabled>
+                                <option value="">Select a visitor first</option>
+                            </select>
+                        </label>
+                        <button class="admin-primary-button" id="showRouteBtn" type="button" disabled>Show route history</button>
+                        <p class="security-map-help">Locations update from checked-in visitors who have granted GPS access.</p>
+                    </section>
+
+                    <section class="security-map-status" id="securityMapStatus" aria-live="polite">
+                        <strong id="mapStatusTitle">Waiting for active visitors</strong>
+                        <span id="mapStatusText">Checked-in visitors will appear here automatically.</span>
+                    </section>
+
+                    <div class="security-map-error" id="securityMapError" role="alert" hidden></div>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <script src="auth.js"></script>
-    <script src="dashboard.js"></script>
+    <script src="auth.js?v=20260917-3"></script>
+    <script src="dashboard.js?v=20260917-3"></script>
 </body>
 </html>
