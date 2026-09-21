@@ -1,0 +1,8 @@
+# Android Studio normally writes this path for you during first sync.
+# sdk.dir=C\:\\Users\\YOUR_WINDOWS_USER\\AppData\\Local\\Android\\Sdk
+
+# Emulator default:
+ISATU_API_BASE_URL=http://10.0.2.2/visitor-management-system/phone_tracker/api/v1/
+
+# For a physical phone, replace 192.168.1.25 with this PC's IPv4 address.
+# ISATU_API_BASE_URL=http://192.168.1.25/visitor-management-system/phone_tracker/api/v1/

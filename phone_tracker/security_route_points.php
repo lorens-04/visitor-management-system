@@ -10,18 +10,18 @@ $device = isset($_GET["device"]) ? trim((string) $_GET["device"]) : "";
 $date = isset($_GET["date"]) ? trim((string) $_GET["date"]) : date("Y-m-d");
 $appointmentId = isset($_GET["appointment_id"]) ? (int) $_GET["appointment_id"] : 0;
 
-if ($appointmentId <= 0 || $device === "" || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $date)) {
+if ($appointmentId <= 0 || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $date)) {
     echo json_encode(["success" => false, "message" => "Select a valid visitor and date", "data" => []]);
     exit;
 }
 
 $appointmentCheck = $conn->prepare(
-    "SELECT id, checked_in_at, completed_at
+    "SELECT id, device_name, checked_in_at, completed_at
      FROM appointments
-     WHERE id = ? AND device_name = ? AND status IN ('checked_in', 'completed')
+     WHERE id = ? AND status IN ('checked_in', 'completed')
      LIMIT 1"
 );
-$appointmentCheck->bind_param("is", $appointmentId, $device);
+$appointmentCheck->bind_param("i", $appointmentId);
 $appointmentCheck->execute();
 $appointment = $appointmentCheck->get_result()->fetch_assoc();
 $appointmentCheck->close();
@@ -31,6 +31,7 @@ if (!$appointment || !$appointment["checked_in_at"]) {
     echo json_encode(["success" => false, "message" => "Active visitor record not found", "data" => []]);
     exit;
 }
+$device = (string) $appointment["device_name"];
 
 $start = $date . " 00:00:00";
 $end = $date . " 23:59:59";
@@ -41,19 +42,20 @@ if ($appointment["completed_at"] && strtotime($appointment["completed_at"]) < st
     $end = $appointment["completed_at"];
 }
 $stmt = $conn->prepare(
-    "SELECT id, device_name, latitude, longitude, accuracy, recorded_at
+    "SELECT id, appointment_id, device_name, latitude, longitude, accuracy, recorded_at
      FROM locations
-     WHERE device_name = ? AND recorded_at BETWEEN ? AND ?
+     WHERE appointment_id = ? AND recorded_at BETWEEN ? AND ?
      ORDER BY recorded_at ASC, id ASC
      LIMIT 2000"
 );
-$stmt->bind_param("sss", $device, $start, $end);
+$stmt->bind_param("iss", $appointmentId, $start, $end);
 $stmt->execute();
 $result = $stmt->get_result();
 $points = [];
 while ($row = $result->fetch_assoc()) {
     $points[] = [
         "id" => (int) $row["id"],
+        "appointment_id" => (int) $row["appointment_id"],
         "device_name" => $row["device_name"],
         "latitude" => (float) $row["latitude"],
         "longitude" => (float) $row["longitude"],

@@ -4,8 +4,10 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/session_bootstrap.php";
 require_once __DIR__ . "/appointment_offices.php";
+require_once __DIR__ . "/appointment_maintenance.php";
 
 require_roles_json(["security", "admin"]);
+refresh_appointment_time_states($conn);
 
 function security_appointment_column_exists(mysqli $conn, string $column): bool
 {
@@ -37,13 +39,14 @@ $subjectSelect = security_appointment_column_exists($conn, "subject")
 
 $walkInTodayExpression = $hasVisitType
     ? "SUM(DATE(COALESCE(checked_in_at, appointment_at)) = CURDATE()
-           AND LOWER(REPLACE(visit_type, '_', '-')) = 'walk-in')"
+           AND LOWER(REPLACE(visit_type, '_', '-')) = 'walk-in'
+           AND status IN ('checked_in', 'completed'))"
     : "0";
 $appointmentTodayExpression = $hasVisitType
     ? "SUM(DATE(appointment_at) = CURDATE()
            AND LOWER(REPLACE(visit_type, '_', '-')) <> 'walk-in'
-           AND status <> 'cancelled')"
-    : "SUM(DATE(appointment_at) = CURDATE() AND status <> 'cancelled')";
+           AND status IN ('approved', 'checked_in', 'completed'))"
+    : "SUM(DATE(appointment_at) = CURDATE() AND status IN ('approved', 'checked_in', 'completed'))";
 
 $summary = [
     "inside_campus" => 0,
@@ -71,7 +74,8 @@ $rows = [];
 $officeMap = appointment_office_map();
 $result = $conn->query(
     "SELECT a.id, a.public_token, a.visitor_full_name, a.visitor_email,
-            a.office_code, a.device_name, a.appointment_at, a.status,
+            a.registration_code, a.office_code, a.device_name, a.appointment_at,
+            a.scheduled_start_at, a.scheduled_end_at, a.status,
             a.checked_in_at, a.completed_at, a.cancelled_at, a.created_at,
             {$visitTypeSelect}, {$purposeSelect}, {$subjectSelect}
      FROM appointments a
@@ -84,7 +88,7 @@ if ($result) {
         $officeCode = (string) ($row["office_code"] ?? "");
         $createdYear = $row["created_at"] ? date("Y", strtotime($row["created_at"])) : date("Y");
         $row["id"] = $id;
-        $row["registration_id"] = "V-" . $createdYear . "-" . str_pad((string) $id, 6, "0", STR_PAD_LEFT);
+        $row["registration_id"] = $row["registration_code"] ?: ("V-" . $createdYear . "-" . str_pad((string) $id, 6, "0", STR_PAD_LEFT));
         $row["office_label"] = $officeMap[$officeCode] ?? $officeCode;
         $rows[] = $row;
     }

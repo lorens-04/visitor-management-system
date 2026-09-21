@@ -13,7 +13,7 @@ if (strlen($token) !== 64) {
 
 $visitorUserId = (int) $_SESSION["user_id"];
 $apptStmt = $conn->prepare(
-    "SELECT device_name, status FROM appointments WHERE public_token = ? AND visitor_user_id = ? LIMIT 1"
+    "SELECT id, device_name, status FROM appointments WHERE public_token = ? AND visitor_user_id = ? LIMIT 1"
 );
 if (!$apptStmt) {
     echo json_encode(["success" => false, "message" => "Server error"]);
@@ -38,11 +38,11 @@ if ($appt["status"] !== "checked_in" && $appt["status"] !== "completed") {
     exit;
 }
 
-$deviceName = (string) $appt["device_name"];
+$appointmentId = (int) $appt["id"];
 $locStmt = $conn->prepare(
-    "SELECT id, device_name, latitude, longitude, accuracy, recorded_at
+    "SELECT id, appointment_id, device_name, latitude, longitude, accuracy, recorded_at
      FROM locations
-     WHERE device_name = ?
+     WHERE appointment_id = ?
      ORDER BY id DESC
      LIMIT 1"
 );
@@ -52,7 +52,7 @@ if (!$locStmt) {
     exit;
 }
 
-$locStmt->bind_param("s", $deviceName);
+$locStmt->bind_param("i", $appointmentId);
 $locStmt->execute();
 $locRes = $locStmt->get_result();
 $loc = $locRes->fetch_assoc();

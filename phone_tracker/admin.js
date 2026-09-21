@@ -6,11 +6,11 @@
     }
 
     const officeNames = {
-        CCI: "Computing and Informatics",
-        COED: "Education",
-        CEA: "Engineering and Architecture",
-        CIT: "Industrial Technology",
-        CAS: "Arts and Sciences",
+        IT: "IT Department",
+        IS: "IS Department",
+        CS: "CS Department",
+        DEANS: "Dean's Office",
+        TECH_SUPPORT: "Tech Support",
     };
     const userState = {
         users: [],
@@ -82,7 +82,12 @@
     function statusMeta(status) {
         const statuses = {
             checked_in: { label: "Active", className: "is-active" },
-            pending: { label: "Pending", className: "is-pending" },
+            pending_approval: { label: "Pending approval", className: "is-pending" },
+            approved: { label: "Approved", className: "is-active" },
+            rejected: { label: "Declined", className: "is-cancelled" },
+            unanswered: { label: "Office did not respond", className: "is-cancelled" },
+            reschedule_proposed: { label: "Reschedule proposed", className: "is-pending" },
+            window_closed: { label: "Appointment done", className: "is-completed" },
             completed: { label: "Completed", className: "is-completed" },
             cancelled: { label: "Cancelled", className: "is-cancelled" },
         };
@@ -199,7 +204,7 @@
 
     function renderNotifications(totalPending) {
         const pendingRows = visitorState.rows.filter(function (visitor) {
-            return visitor.status === "pending";
+            return visitor.status === "pending_approval";
         }).slice(0, 5);
         notificationList.replaceChildren();
         pendingRows.forEach(function (visitor) {
@@ -798,8 +803,8 @@
     });
 
     document.getElementById("viewPendingBtn").addEventListener("click", function () {
-        visitorState.status = "pending";
-        document.getElementById("visitorStatusFilter").value = "pending";
+        visitorState.status = "pending_approval";
+        document.getElementById("visitorStatusFilter").value = "pending_approval";
         notificationPanel.hidden = true;
         notificationBtn.setAttribute("aria-expanded", "false");
         switchView("dashboard");

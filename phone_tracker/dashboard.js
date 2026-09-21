@@ -20,6 +20,7 @@
         routeStart: null,
         routeEnd: null,
         liveVisits: [],
+        routeVisits: [],
         fittedLiveMarkers: false,
         initialized: false,
     };
@@ -79,10 +80,44 @@
         }).format(date);
     }
 
+    function formatLocationAge(seconds) {
+        const value = Number(seconds);
+        if (!Number.isFinite(value) || value < 0) {
+            return "update time unavailable";
+        }
+        if (value < 10) {
+            return "just now";
+        }
+        if (value < 60) {
+            return Math.floor(value) + " seconds ago";
+        }
+        if (value < 3600) {
+            const minutes = Math.floor(value / 60);
+            return minutes + " minute" + (minutes === 1 ? "" : "s") + " ago";
+        }
+        const hours = Math.floor(value / 3600);
+        return hours + " hour" + (hours === 1 ? "" : "s") + " ago";
+    }
+
+    function locationStateMeta(state) {
+        const states = {
+            live: { label: "Live", color: "#0a9b55" },
+            stale: { label: "Stale", color: "#e08a12" },
+            offline: { label: "Offline", color: "#687382" },
+            waiting: { label: "Waiting for GPS", color: "#0755b5" },
+        };
+        return states[state] || states.waiting;
+    }
+
     function statusMeta(status) {
         const map = {
             checked_in: { label: "Active", className: "is-active" },
-            pending: { label: "Pending", className: "is-pending" },
+            pending_approval: { label: "Pending approval", className: "is-pending" },
+            approved: { label: "Approved", className: "is-active" },
+            rejected: { label: "Declined", className: "is-cancelled" },
+            unanswered: { label: "Office did not respond", className: "is-cancelled" },
+            reschedule_proposed: { label: "Reschedule proposed", className: "is-pending" },
+            window_closed: { label: "Appointment done", className: "is-completed" },
             completed: { label: "Inactive", className: "is-completed" },
             cancelled: { label: "Cancelled", className: "is-cancelled" },
         };
@@ -225,6 +260,10 @@
                 const end = createRowAction("End visit", "security-end-button", visitor);
                 end.dataset.action = "complete";
                 actions.append(monitor, end);
+            } else if (visitor.status === "completed") {
+                const route = createRowAction("View route", "security-monitor-button", visitor);
+                route.dataset.action = "monitor";
+                actions.append(route);
             }
             row.appendChild(actions);
             visitorsBody.appendChild(row);
@@ -303,8 +342,15 @@
         const destination = document.createElement("span");
         destination.textContent = visit.office_label || visit.office_code || "No destination";
         const updated = document.createElement("small");
-        updated.textContent = visit.recorded_at ? "GPS updated " + formatTime(visit.recorded_at) : "Waiting for GPS";
-        content.append(title, destination, updated);
+        const state = locationStateMeta(visit.location_state);
+        updated.textContent = visit.recorded_at
+            ? state.label + " • updated " + formatLocationAge(visit.seconds_since_update)
+            : "Waiting for the first GPS update";
+        const accuracy = document.createElement("small");
+        accuracy.textContent = visit.accuracy == null
+            ? "Accuracy unavailable"
+            : "Accuracy ±" + Math.round(Number(visit.accuracy)) + " m";
+        content.append(title, destination, updated, accuracy);
         return content;
     }
 
@@ -312,12 +358,13 @@
         const previous = visitorSelect.value;
         const defaultOption = document.createElement("option");
         defaultOption.value = "";
-        defaultOption.textContent = "All active visitors";
+        defaultOption.textContent = "Select a visitor";
         visitorSelect.replaceChildren(defaultOption);
         visits.forEach(function (visit) {
             const option = document.createElement("option");
             option.value = String(visit.appointment_id);
-            option.textContent = visit.visitor_full_name || visit.device_name || "Visitor";
+            option.textContent = (visit.visitor_full_name || visit.device_name || "Visitor")
+                + (visit.status === "completed" ? " — Completed" : " — Active");
             visitorSelect.appendChild(option);
         });
         if (visits.some(function (visit) { return String(visit.appointment_id) === previous; })) {
@@ -333,10 +380,12 @@
             setText("mapStatusText", "Checked-in visitors will appear here automatically.");
             return;
         }
-        setText("mapStatusTitle", located.length + " visitor" + (located.length === 1 ? "" : "s") + " visible on the map");
-        setText("mapStatusText", waiting > 0
-            ? waiting + " active visitor" + (waiting === 1 ? " is" : "s are") + " waiting for a GPS location."
-            : "All active visitor locations are reporting.");
+        const live = located.filter(function (visit) { return visit.location_state === "live"; }).length;
+        const stale = located.filter(function (visit) { return visit.location_state === "stale"; }).length;
+        const offline = located.filter(function (visit) { return visit.location_state === "offline"; }).length;
+        setText("mapStatusTitle", visits.length + " active visitor" + (visits.length === 1 ? "" : "s"));
+        setText("mapStatusText", live + " live • " + stale + " stale • " + offline + " offline"
+            + (waiting > 0 ? " • " + waiting + " waiting for GPS" : ""));
     }
 
     async function loadLiveLocations() {
@@ -351,7 +400,8 @@
             }
             showMessage("securityMapError", "");
             monitoringState.liveVisits = data.data;
-            updateVisitorOptions(data.data);
+            monitoringState.routeVisits = Array.isArray(data.route_visits) ? data.route_visits : data.data;
+            updateVisitorOptions(monitoringState.routeVisits);
             updateMapStatus(data.data);
 
             const activeMarkerIds = new Set();
@@ -364,18 +414,20 @@
                 activeMarkerIds.add(key);
                 const point = [Number(visit.latitude), Number(visit.longitude)];
                 visiblePoints.push(point);
+                const markerState = locationStateMeta(visit.location_state);
                 let marker = monitoringState.markers.get(key);
                 if (!marker) {
                     marker = L.circleMarker(point, {
                         radius: 9,
                         color: "#ffffff",
                         weight: 3,
-                        fillColor: "#0755b5",
+                        fillColor: markerState.color,
                         fillOpacity: 1,
                     }).addTo(monitoringState.map);
                     monitoringState.markers.set(key, marker);
                 } else {
                     marker.setLatLng(point);
+                    marker.setStyle({ fillColor: markerState.color });
                 }
                 marker.bindPopup(makeVisitorPopup(visit));
                 const tooltip = document.createElement("span");
@@ -405,12 +457,12 @@
     }
 
     function selectedLiveVisit() {
-        return monitoringState.liveVisits.find(function (visit) {
+        return monitoringState.routeVisits.find(function (visit) {
             return String(visit.appointment_id) === visitorSelect.value;
         }) || null;
     }
 
-    function loadVisitorDates() {
+    async function loadVisitorDates() {
         const visit = selectedLiveVisit();
         dateSelect.disabled = true;
         showRouteButton.disabled = true;
@@ -420,7 +472,7 @@
         dateSelect.replaceChildren(placeholder);
         clearRoute();
 
-        if (!visit || !visit.device_name) {
+        if (!visit) {
             if (monitoringState.map && monitoringState.markers.size > 0) {
                 const points = Array.from(monitoringState.markers.values()).map(function (marker) { return marker.getLatLng(); });
                 monitoringState.map.fitBounds(points, { padding: [70, 70], maxZoom: 18 });
@@ -432,14 +484,27 @@
             monitoringState.map.setView(marker.getLatLng(), 18);
             marker.openPopup();
         }
-        const routeDate = String(visit.checked_in_at || "").slice(0, 10);
-        dateSelect.replaceChildren();
-        const option = document.createElement("option");
-        option.value = routeDate;
-        option.textContent = routeDate || "No check-in date";
-        dateSelect.appendChild(option);
-        dateSelect.disabled = !routeDate;
-        showRouteButton.disabled = !routeDate;
+        try {
+            const data = await fetchJson("security_route_dates.php?appointment_id=" + encodeURIComponent(visit.appointment_id));
+            dateSelect.replaceChildren();
+            if (!data || !data.success || !Array.isArray(data.data) || data.data.length === 0) {
+                const empty = document.createElement("option");
+                empty.value = "";
+                empty.textContent = "No GPS route recorded";
+                dateSelect.appendChild(empty);
+                return;
+            }
+            data.data.forEach(function (item) {
+                const option = document.createElement("option");
+                option.value = item.date;
+                option.textContent = item.date + " — " + item.point_count + " point" + (item.point_count === 1 ? "" : "s");
+                dateSelect.appendChild(option);
+            });
+            dateSelect.disabled = false;
+            showRouteButton.disabled = false;
+        } catch (error) {
+            showMessage("securityMapError", error.message || "Could not load route dates.");
+        }
     }
 
     async function showSelectedRoute() {
@@ -452,7 +517,6 @@
         try {
             const params = new URLSearchParams({
                 appointment_id: String(visit.appointment_id),
-                device: visit.device_name,
                 date: date,
             });
             const data = await fetchJson("security_route_points.php?" + params.toString());
@@ -486,7 +550,12 @@
             }).addTo(monitoringState.map).bindTooltip("Latest point");
             monitoringState.map.fitBounds(monitoringState.routeLine.getBounds(), { padding: [70, 70], maxZoom: 18 });
             setText("mapStatusTitle", (visit.visitor_full_name || "Visitor") + " route");
-            setText("mapStatusText", points.length + " GPS point" + (points.length === 1 ? "" : "s") + " recorded on " + date + ".");
+            const accuracies = data.data.map(function (point) { return Number(point.accuracy); }).filter(Number.isFinite);
+            const averageAccuracy = accuracies.length
+                ? Math.round(accuracies.reduce(function (sum, accuracy) { return sum + accuracy; }, 0) / accuracies.length)
+                : null;
+            setText("mapStatusText", points.length + " GPS point" + (points.length === 1 ? "" : "s") + " recorded on " + date
+                + (averageAccuracy === null ? "." : " • average accuracy ±" + averageAccuracy + " m."));
         } catch (error) {
             if (error.message !== "Not authenticated") {
                 showMessage("securityMapError", error.message || "Could not load the route.");
@@ -578,7 +647,7 @@
         if (button.dataset.action === "monitor") {
             switchSecurityView("monitoring");
             loadLiveLocations().then(function () {
-                const live = monitoringState.liveVisits.find(function (item) {
+                const live = monitoringState.routeVisits.find(function (item) {
                     return Number(item.appointment_id) === Number(visitor.id);
                 });
                 if (live) {

@@ -2,8 +2,10 @@
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/session_bootstrap.php";
 require_once __DIR__ . "/appointment_offices.php";
+require_once __DIR__ . "/appointment_maintenance.php";
 
 require_admin_json();
+refresh_appointment_time_states($conn);
 
 // Match the local MySQL/system clock used by the ISATU installation.
 date_default_timezone_set("Asia/Manila");
@@ -228,7 +230,7 @@ $activeResult = $conn->query(
     "SELECT COUNT(*) AS active_total,
             SUM(EXISTS(
                 SELECT 1 FROM locations l
-                WHERE l.device_name = a.device_name AND l.recorded_at >= a.checked_in_at
+                WHERE l.appointment_id = a.id AND l.recorded_at >= a.checked_in_at
             )) AS tracked_total
      FROM appointments a
      WHERE a.status = 'checked_in'"
@@ -238,12 +240,12 @@ $activeTotal = (int) ($activeRow["active_total"] ?? 0);
 $trackedNow = (int) ($activeRow["tracked_total"] ?? 0);
 
 $locationStmt = $conn->prepare(
-    "SELECT COUNT(*) AS update_total, COUNT(DISTINCT l.device_name) AS device_total
+    "SELECT COUNT(*) AS update_total, COUNT(DISTINCT l.appointment_id) AS device_total
      FROM locations l
      WHERE l.recorded_at BETWEEN ? AND ?
        AND EXISTS (
            SELECT 1 FROM appointments a
-           WHERE a.device_name = l.device_name
+            WHERE a.id = l.appointment_id
              AND a.checked_in_at IS NOT NULL
              AND l.recorded_at >= a.checked_in_at
              AND (a.completed_at IS NULL OR l.recorded_at <= a.completed_at)
@@ -257,12 +259,12 @@ $locationStmt->close();
 $zones = [];
 if ($hasZoneName) {
     $zoneStmt = $conn->prepare(
-        "SELECT l.zone_name, COUNT(DISTINCT l.device_name) AS visitor_count, COUNT(*) AS update_count
+        "SELECT l.zone_name, COUNT(DISTINCT l.appointment_id) AS visitor_count, COUNT(*) AS update_count
          FROM locations l
          WHERE l.recorded_at BETWEEN ? AND ? AND NULLIF(TRIM(l.zone_name), '') IS NOT NULL
            AND EXISTS (
                SELECT 1 FROM appointments a
-               WHERE a.device_name = l.device_name
+                WHERE a.id = l.appointment_id
                  AND a.checked_in_at IS NOT NULL
                  AND l.recorded_at >= a.checked_in_at
                  AND (a.completed_at IS NULL OR l.recorded_at <= a.completed_at)

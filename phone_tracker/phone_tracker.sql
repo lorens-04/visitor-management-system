@@ -29,6 +29,8 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `locations` (
   `id` int(11) NOT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `visitor_user_id` int(11) DEFAULT NULL,
   `device_name` varchar(100) NOT NULL,
   `latitude` decimal(10,7) NOT NULL,
   `longitude` decimal(10,7) NOT NULL,
@@ -222,7 +224,9 @@ INSERT INTO `locations` (`id`, `device_name`, `latitude`, `longitude`, `accuracy
 -- Indexes for table `locations`
 --
 ALTER TABLE `locations`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_location_appointment_time` (`appointment_id`,`recorded_at`),
+  ADD KEY `idx_location_visitor_time` (`visitor_user_id`,`recorded_at`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -240,6 +244,8 @@ COMMIT;
 --   2) app_users_office_code_migration.sql  — adds office_code if upgrading an older app_users table
 --   3) appointments.sql  — appointments + status history
 --   4) appointments_status_migration.sql  — if appointments existed without lifecycle columns
+
+-- For an existing installation, apply phase1_workflow_migration.sql after the legacy migrations.
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

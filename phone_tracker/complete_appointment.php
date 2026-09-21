@@ -63,6 +63,58 @@ if ($hist) {
     $hist->execute();
     $hist->close();
 }
+
+// Phase 4 mobile tracking sessions are optional on older installations. When the
+// migration is present, completion immediately closes the app's active session.
+$tracking = false;
+try {
+    $tracking = $conn->prepare(
+        "UPDATE location_tracking_sessions
+         SET ended_at = COALESCE(ended_at, NOW()), ended_reason = 'completed'
+         WHERE appointment_id = ? AND ended_at IS NULL"
+    );
+} catch (Throwable $ignored) {
+    // Preserve the legacy web workflow until mobile_api_migration.sql is installed.
+}
+if ($tracking) {
+    $tracking->bind_param("i", $appointmentId);
+    $tracking->execute();
+    $tracking->close();
+}
+
+$visitorLookup = $conn->prepare("SELECT visitor_user_id FROM appointments WHERE id = ? LIMIT 1");
+if ($visitorLookup) {
+    $visitorLookup->bind_param("i", $appointmentId);
+    $visitorLookup->execute();
+    $visitorRow = $visitorLookup->get_result()->fetch_assoc();
+    $visitorLookup->close();
+    if ($visitorRow) {
+        $visitorUserId = (int) $visitorRow["visitor_user_id"];
+        $notification = $conn->prepare(
+            "INSERT INTO app_notifications
+             (recipient_user_id, appointment_id, notification_type, title, message)
+             VALUES (?, ?, 'appointment.completed', 'Visit completed', 'Security completed your campus visit. Location tracking has stopped.')"
+        );
+        if ($notification) {
+            $notification->bind_param("ii", $visitorUserId, $appointmentId);
+            $notification->execute();
+            $notification->close();
+        }
+    }
+}
+
+$audit = $conn->prepare(
+    "INSERT INTO audit_logs
+     (actor_user_id, appointment_id, action, entity_type, entity_id, details_json, ip_address)
+     VALUES (?, ?, 'appointment.completed', 'appointment', ?, '{}', ?)"
+);
+if ($audit) {
+    $entityId = (string) $appointmentId;
+    $ipAddress = isset($_SERVER["REMOTE_ADDR"]) ? substr((string) $_SERVER["REMOTE_ADDR"], 0, 45) : "";
+    $audit->bind_param("iiss", $securityUserId, $appointmentId, $entityId, $ipAddress);
+    $audit->execute();
+    $audit->close();
+}
 $conn->close();
 
 echo json_encode(["success" => true, "message" => "Visit marked as complete"]);

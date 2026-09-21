@@ -1,4 +1,5 @@
--- Migration for existing phone_tracker databases.
+-- LEGACY migration for pre-Phase-1 databases.
+-- Do not run this after phase1_workflow_migration.sql.
 SET NAMES utf8mb4;
 
 ALTER TABLE `appointments`

@@ -1,0 +1,5 @@
+/.backups/
+/.android-user/
+/.gradle-user/
+/.gradle-project-cache/
+/debug.log

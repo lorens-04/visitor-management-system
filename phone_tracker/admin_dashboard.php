@@ -4,8 +4,10 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/session_bootstrap.php";
 require_once __DIR__ . "/appointment_offices.php";
+require_once __DIR__ . "/appointment_maintenance.php";
 
 require_admin_json();
+refresh_appointment_time_states($conn);
 
 /**
  * This lets the dashboard use optional fields later without requiring the
@@ -39,7 +41,7 @@ $summary = [
 $summaryResult = $conn->query(
     "SELECT
         SUM(status = 'checked_in') AS active_visitors,
-        SUM(status = 'pending') AS pending_approvals
+        SUM(status = 'pending_approval') AS pending_approvals
      FROM appointments"
 );
 if ($summaryResult) {

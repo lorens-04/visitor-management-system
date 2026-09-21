@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In | ISATU Visitor Management System</title>
-    <link rel="stylesheet" href="style.css?v=20260917-2">
+    <link rel="stylesheet" href="style.css?v=20260919-2">
 </head>
 <body class="auth-page">
     <header class="auth-header">
@@ -38,56 +38,7 @@
                     <p class="auth-message" id="loginMessage" role="alert" hidden></p>
                 </form>
 
-                <p class="auth-switch">New here? <button class="auth-text-button" id="showRegisterBtn" type="button">Create Account</button></p>
                 <button class="auth-submit" id="signInBtn" type="submit" form="loginForm">Log In</button>
-            </div>
-
-            <div class="auth-panel auth-panel-register" id="registerPanel" hidden>
-                <h1 class="auth-panel-title">SIGN UP</h1>
-
-                <form id="registerForm" class="auth-form" action="register.php" method="post">
-                    <div class="auth-field">
-                        <input type="text" id="regFullName" name="full_name" autocomplete="name" maxlength="100" placeholder=" " required>
-                        <label for="regFullName">Full Name</label>
-                    </div>
-
-                    <div class="auth-field">
-                        <input type="email" id="regEmail" name="email" autocomplete="email" maxlength="64" placeholder=" " required>
-                        <label for="regEmail">Email</label>
-                    </div>
-
-                    <div class="auth-field">
-                        <select id="regRole" name="role" required>
-                            <option value="office">Office Personnel</option>
-                            <option value="staff">Security Personnel</option>
-                        </select>
-                        <label for="regRole">Account Type</label>
-                    </div>
-
-                    <div class="auth-field" id="officeAssignment" hidden>
-                        <select id="regOfficeCode" name="office_code">
-                            <option value="CCI">CCI Computing and Informatics</option>
-                            <option value="COED">COED Education</option>
-                            <option value="CEA">CEA Engineering and Architecture</option>
-                            <option value="CIT">CIT Industrial Technology</option>
-                            <option value="CAS">CAS Arts and Sciences</option>
-                        </select>
-                        <label for="regOfficeCode">Office</label>
-                    </div>
-
-                    <div class="auth-field auth-password-field">
-                        <input type="password" id="regPassword" name="password" autocomplete="new-password" minlength="8" placeholder=" " required>
-                        <label for="regPassword">Password</label>
-                        <button class="auth-password-toggle" type="button" data-password-toggle="regPassword" aria-label="Show password" aria-pressed="false">
-                            <img src="assets/icons/visibility_icon.svg" alt="" aria-hidden="true">
-                        </button>
-                    </div>
-
-                    <p class="auth-message" id="registerMessage" role="alert" hidden></p>
-                </form>
-
-                <p class="auth-switch">Already have an account? <button class="auth-text-button" id="showSignInBtn" type="button">Log In</button></p>
-                <button class="auth-submit" id="registerBtn" type="submit" form="registerForm">Sign Up</button>
             </div>
         </section>
     </main>
@@ -102,17 +53,9 @@
                 admin: "admin.html?v=20260917-2",
             };
 
-            var signInPanel = document.getElementById("signInPanel");
-            var registerPanel = document.getElementById("registerPanel");
             var loginForm = document.getElementById("loginForm");
-            var registerForm = document.getElementById("registerForm");
             var loginMessage = document.getElementById("loginMessage");
-            var registerMessage = document.getElementById("registerMessage");
             var signInBtn = document.getElementById("signInBtn");
-            var registerBtn = document.getElementById("registerBtn");
-            var regRole = document.getElementById("regRole");
-            var officeAssignment = document.getElementById("officeAssignment");
-            var regOfficeCode = document.getElementById("regOfficeCode");
 
             document.querySelectorAll("[data-password-toggle]").forEach(function (button) {
                 var input = document.getElementById(button.getAttribute("data-password-toggle"));
@@ -146,42 +89,6 @@
                 var separator = target.indexOf("?") === -1 ? "?" : "&";
                 window.location.href = target + separator + "role=" + encodeURIComponent(role);
             }
-
-            function syncOfficeAssignment() {
-                var isOfficePersonnel = regRole.value === "office";
-                officeAssignment.hidden = !isOfficePersonnel;
-                regOfficeCode.required = isOfficePersonnel;
-                if (!isOfficePersonnel) {
-                    regOfficeCode.value = "";
-                }
-            }
-
-            function showSignIn(message) {
-                registerPanel.hidden = true;
-                signInPanel.hidden = false;
-                showMessage(registerMessage, "");
-                showMessage(loginMessage, message || "", message ? "success" : "");
-                window.setTimeout(function () {
-                    document.getElementById("loginEmail").focus();
-                }, 0);
-            }
-
-            function showRegister() {
-                signInPanel.hidden = true;
-                registerPanel.hidden = false;
-                showMessage(loginMessage, "");
-                showMessage(registerMessage, "");
-                window.setTimeout(function () {
-                    document.getElementById("regFullName").focus();
-                }, 0);
-            }
-
-            document.getElementById("showRegisterBtn").addEventListener("click", showRegister);
-            document.getElementById("showSignInBtn").addEventListener("click", function () {
-                showSignIn();
-            });
-            regRole.addEventListener("change", syncOfficeAssignment);
-            syncOfficeAssignment();
 
             fetch("session_status.php", { credentials: "same-origin" })
                 .then(function (response) {
@@ -233,58 +140,6 @@
                     });
             });
 
-            registerForm.addEventListener("submit", function (event) {
-                event.preventDefault();
-                showMessage(registerMessage, "");
-
-                var fullName = document.getElementById("regFullName").value.trim();
-                var email = document.getElementById("regEmail").value.trim();
-                var password = document.getElementById("regPassword").value;
-                var role = regRole.value;
-                var officeCode = regOfficeCode.value;
-
-                if (!fullName || !email || !password || !role) {
-                    showMessage(registerMessage, "Complete all required fields.");
-                    return;
-                }
-                if (role === "office" && !officeCode) {
-                    showMessage(registerMessage, "Choose the college for this office account.");
-                    return;
-                }
-
-                registerBtn.disabled = true;
-                fetch("register.php", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username: email,
-                        password: password,
-                        display_name: fullName,
-                        role: role,
-                        office_code: officeCode,
-                    }),
-                })
-                    .then(function (response) {
-                        return response.json();
-                    })
-                    .then(function (data) {
-                        if (!data || !data.success) {
-                            showMessage(registerMessage, (data && data.message) || "Sign up failed.");
-                            return;
-                        }
-                        registerForm.reset();
-                        syncOfficeAssignment();
-                        document.getElementById("loginEmail").value = email;
-                        showSignIn(data.message || "Account created. You can log in now.");
-                    })
-                    .catch(function () {
-                        showMessage(registerMessage, "Could not reach the server. Open this page through your local PHP server.");
-                    })
-                    .finally(function () {
-                        registerBtn.disabled = false;
-                    });
-            });
         })();
     </script>
 </body>

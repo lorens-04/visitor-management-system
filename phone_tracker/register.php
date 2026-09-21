@@ -8,7 +8,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 require_once __DIR__ . "/db.php";
-require_once __DIR__ . "/appointment_offices.php";
 
 $raw = file_get_contents("php://input");
 $input = json_decode($raw, true);
@@ -19,17 +18,9 @@ if (!is_array($input)) {
 
 $username = isset($input["username"]) ? trim((string) $input["username"]) : "";
 $password = isset($input["password"]) ? (string) $input["password"] : "";
-$roleRaw = isset($input["role"]) ? strtolower(trim((string) $input["role"])) : "";
-$officeCode = isset($input["office_code"]) ? strtoupper(trim((string) $input["office_code"])) : "";
 $displayName = isset($input["display_name"]) ? trim((string) $input["display_name"]) : "";
-
-$roleMap = [
-    "visitor" => "visitor",
-    "office" => "offices",
-    "offices" => "offices",
-    "staff" => "security",
-    "security" => "security",
-];
+$role = "visitor";
+$officeForDb = "";
 
 if ($username === "" || $password === "") {
     echo json_encode(["success" => false, "message" => "Enter username and password"]);
@@ -49,30 +40,6 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $username) && !filter_var($username, FILTER
 if (strlen($password) < 8) {
     echo json_encode(["success" => false, "message" => "Password must be at least 8 characters"]);
     exit;
-}
-
-if ($roleRaw === "" || !isset($roleMap[$roleRaw])) {
-    echo json_encode(["success" => false, "message" => "Choose account type: visitor, office, or staff"]);
-    exit;
-}
-
-$role = $roleMap[$roleRaw];
-if ($role === "admin") {
-    echo json_encode(["success" => false, "message" => "Invalid account type"]);
-    exit;
-}
-
-$offices = appointment_office_map();
-$officeForDb = "";
-
-if ($role === "offices") {
-    if ($officeCode === "" || !isset($offices[$officeCode])) {
-        echo json_encode(["success" => false, "message" => "Select your college for an office account"]);
-        exit;
-    }
-    $officeForDb = $officeCode;
-} else {
-    $officeForDb = "";
 }
 
 if ($displayName === "") {
@@ -97,11 +64,6 @@ if (!$stmt) {
     );
     if (!$fallback) {
         echo json_encode(["success" => false, "message" => "Server error"]);
-        exit;
-    }
-    if ($role === "offices") {
-        $conn->close();
-        echo json_encode(["success" => false, "message" => "Database needs migration: run app_users_office_code_migration.sql"]);
         exit;
     }
     $fallback->bind_param("ssss", $username, $hash, $displayName, $role);
