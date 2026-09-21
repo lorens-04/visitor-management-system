@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0755b5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Scan Visitor Pass | ISATU Security Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20260917-3">
+    <link rel="stylesheet" href="style.css?v=20260921-2">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body class="admin-page security-page security-scan-page">
@@ -84,11 +86,21 @@
                         <div class="security-camera-placeholder" id="cameraPlaceholder">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
                             <strong id="cameraPlaceholderTitle">Connecting to camera</strong>
-                            <span id="cameraPlaceholderText">Allow camera access when your browser asks.</span>
+                            <span id="cameraPlaceholderText">Live scanning needs HTTPS. Local testing can use a QR photo or screenshot.</span>
                         </div>
                     </div>
 
                     <div class="security-camera-actions">
+                        <button class="security-photo-scan" id="scanQrPhotoBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+                            Take QR photo
+                        </button>
+                        <input id="qrPhotoInput" type="file" accept="image/*" capture="environment" hidden>
+                        <button class="security-gallery-scan" id="chooseQrImageBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM7 15l3-3 2 2 2-2 3 3M8 9h.01"/></svg>
+                            Choose QR screenshot
+                        </button>
+                        <input id="qrImageInput" type="file" accept="image/*" hidden>
                         <label id="cameraSelectField" hidden>
                             <span>Camera</span>
                             <select id="cameraSelect" aria-label="Select camera"></select>
@@ -97,7 +109,7 @@
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
                             Try camera again
                         </button>
-                        <p>For the fastest scan, increase the visitor screen brightness and hold the QR code steady.</p>
+                        <p>After taking a photo, tap the camera app's checkmark or <strong>Use photo</strong> so it returns to this page. Do not open the QR link inside the camera app.</p>
                     </div>
                 </section>
 
@@ -116,6 +128,7 @@
                                 <div><dt>Visitor</dt><dd id="scanVisitorName">-</dd></div>
                                 <div><dt>Destination</dt><dd id="scanDestination">-</dd></div>
                             </dl>
+                            <button class="security-override-button" id="openQrOverrideBtn" type="button" hidden>Authorize time override</button>
                             <button class="security-scan-next" id="scanNextBtn" type="button" hidden>Scan next visitor</button>
                         </div>
                     </section>
@@ -138,14 +151,38 @@
 
                     <section class="security-scan-help">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-                        <p><strong>Camera not opening?</strong> Select the camera icon in your browser's address bar, allow access, then choose “Try camera again.”</p>
+                        <p><strong>Why isn't the camera inside the box?</strong> Phone browsers block live camera streams on local HTTP addresses. Use a photo/screenshot for local testing; the embedded scanner becomes available after trusted HTTPS deployment.</p>
                     </section>
                 </aside>
             </div>
         </main>
     </div>
 
+    <dialog class="admin-dialog security-override-dialog" id="qrOverrideDialog">
+        <form id="qrOverrideForm">
+            <header class="admin-dialog-header">
+                <div><p class="admin-eyebrow">Recorded security exception</p><h2>Authorize QR time override</h2></div>
+                <button class="admin-dialog-close" id="closeQrOverrideBtn" type="button" aria-label="Close">×</button>
+            </header>
+            <p class="security-override-help">Use this only when Security or Admin has confirmed that an early or expired visitor pass should be accepted. The reason will be stored in the audit log.</p>
+            <dl class="security-override-summary">
+                <div><dt>Visitor</dt><dd id="overrideVisitorName">—</dd></div>
+                <div><dt>Destination</dt><dd id="overrideDestination">—</dd></div>
+                <div><dt>Scheduled visit</dt><dd id="overrideSchedule">—</dd></div>
+            </dl>
+            <label class="office-field"><span>Reason for override</span><textarea id="qrOverrideReason" rows="4" minlength="5" maxlength="500" required placeholder="Explain why this visitor is being allowed outside the scheduled QR window"></textarea></label>
+            <label class="office-field"><span>Override remains valid for</span>
+                <select id="qrOverrideMinutes"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">1 hour</option></select>
+            </label>
+            <p class="admin-message is-error" id="qrOverrideError" role="alert" hidden></p>
+            <div class="admin-dialog-actions">
+                <button class="admin-cancel-button" id="cancelQrOverrideBtn" type="button">Cancel</button>
+                <button class="admin-primary-button" id="confirmQrOverrideBtn" type="submit">Authorize and check in</button>
+            </div>
+        </form>
+    </dialog>
+
     <script src="auth.js?v=20260917-3"></script>
-    <script src="security_scan.js?v=20260917-3"></script>
+    <script src="security_scan.js?v=20260921-2"></script>
 </body>
 </html>
