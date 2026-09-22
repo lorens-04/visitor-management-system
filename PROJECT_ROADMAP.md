@@ -164,9 +164,14 @@ project/provider credentials and remain deployment configuration tasks.
 - [x] Add Firebase Messaging client handling, server device-token rotation, and real
   local Firebase client/server configuration; physical-device delivery remains unverified.
 - [x] Display a QR visitor pass only for an approved appointment.
-- [x] Capture tracking consent during signup and request Android location permission only after check-in.
-- [x] Start GPS sharing only after Security check-in, show a persistent tracking indicator,
+- [x] Capture tracking consent and request Android's one-time location permission during signup.
+- [x] Start GPS sharing automatically after Security check-in, show a persistent tracking indicator,
   queue updates when offline, and stop after checkout/completion.
+- [x] Add the post-check-in visitor map screen structure and backend geofence handoff contract.
+- [ ] Connect the visitor map to an institution-owned map key, official campus polygon,
+  and the five office destination coordinates.
+- [ ] Complete visits automatically after a server-confirmed campus exit without retaining
+  movement beyond the campus boundary.
 - [x] Encrypt the API bearer token with Android Keystore and keep all service/signing
   secrets out of the repository.
 - [x] Verify Gradle project configuration and the build task graph with JDK 17.

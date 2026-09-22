@@ -122,7 +122,8 @@ release APK as a production application.
 4. Approve it from the matching Office dashboard.
 5. Confirm the phone receives a notification and displays the appointment QR pass.
 6. Scan the appointment pass from Security during its valid window.
-7. Grant location permission and start sharing after check-in.
+7. Grant Android's one-time precise-location permission during signup. Keep the visitor
+   pass open while Security scans it and confirm sharing starts automatically after check-in.
 8. Confirm Security sees the live marker and route updates.
 9. Disconnect the phone briefly, reconnect it, and confirm queued points upload.
 10. Complete the visit and confirm tracking stops and later uploads are rejected.

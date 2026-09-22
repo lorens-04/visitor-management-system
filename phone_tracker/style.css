@@ -219,8 +219,9 @@ textarea {
 .security-scanner-guide[hidden],
 .security-result-details[hidden],
 .security-scan-next[hidden],
+.security-override-button[hidden],
 .security-camera-actions [hidden] {
-    display: none;
+    display: none !important;
 }
 
 .security-camera-placeholder svg {
@@ -504,11 +505,9 @@ textarea {
 }
 
 .security-result-details dd {
-    overflow: hidden;
     color: #27313d;
     font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .security-scan-next {
@@ -4528,6 +4527,11 @@ body.security-page {
     color: #47505a;
     font-family: Consolas, "Courier New", monospace;
     font-size: 10px;
+}
+
+.security-active-time {
+    color: #087443;
+    font-weight: 700;
 }
 
 .security-row-actions {

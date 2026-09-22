@@ -90,6 +90,9 @@ if ($result) {
         $row["id"] = $id;
         $row["registration_id"] = $row["registration_code"] ?: ("V-" . $createdYear . "-" . str_pad((string) $id, 6, "0", STR_PAD_LEFT));
         $row["office_label"] = $officeMap[$officeCode] ?? $officeCode;
+        $row["is_inside_campus"] = $row["status"] === "checked_in"
+            && !empty($row["checked_in_at"])
+            && empty($row["completed_at"]);
         $rows[] = $row;
     }
 }

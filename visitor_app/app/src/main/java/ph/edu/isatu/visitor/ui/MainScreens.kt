@@ -78,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import ph.edu.isatu.visitor.BuildConfig
 import ph.edu.isatu.visitor.data.AppointmentDto
 import ph.edu.isatu.visitor.data.NotificationDto
 import java.text.SimpleDateFormat
@@ -592,6 +593,15 @@ private fun ProfileScreen(state: VisitorUiState, viewModel: AppViewModel) {
                 Spacer(Modifier.size(8.dp))
                 Text("Sign out")
             }
+        }
+        item {
+            Text(
+                "App version ${BuildConfig.VERSION_NAME}",
+                modifier = Modifier.fillMaxWidth(),
+                color = MutedInk,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
     if (showEdit && user != null) {

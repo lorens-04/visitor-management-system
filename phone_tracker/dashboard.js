@@ -109,9 +109,11 @@
         return states[state] || states.waiting;
     }
 
-    function statusMeta(status) {
+    function statusMeta(status, isInsideCampus) {
         const map = {
-            checked_in: { label: "Active", className: "is-active" },
+            checked_in: isInsideCampus
+                ? { label: "Active — inside", className: "is-active" }
+                : { label: "Inactive", className: "is-completed" },
             pending_approval: { label: "Pending approval", className: "is-pending" },
             approved: { label: "Approved", className: "is-active" },
             rejected: { label: "Declined", className: "is-cancelled" },
@@ -235,7 +237,7 @@
 
         pageVisitors.forEach(function (visitor) {
             const row = document.createElement("tr");
-            const status = statusMeta(visitor.status);
+            const status = statusMeta(visitor.status, Boolean(visitor.is_inside_campus));
             appendCell(row, visitor.registration_id, "security-registration-cell");
             appendCell(row, visitor.visitor_full_name || "Visitor", "admin-cell-strong");
 
@@ -250,11 +252,15 @@
             appendCell(row, visitor.office_label || visitor.office_code || "—");
             appendCell(row, visitor.subject || "—");
             appendCell(row, formatTime(visitor.checked_in_at));
-            appendCell(row, formatTime(visitor.completed_at || visitor.cancelled_at));
+            appendCell(
+                row,
+                visitor.is_inside_campus ? "Still inside" : formatTime(visitor.completed_at || visitor.cancelled_at),
+                visitor.is_inside_campus ? "security-active-time" : "",
+            );
 
             const actions = document.createElement("td");
             actions.className = "security-row-actions";
-            if (visitor.status === "checked_in") {
+            if (visitor.is_inside_campus) {
                 const monitor = createRowAction("Monitor", "security-monitor-button", visitor);
                 monitor.dataset.action = "monitor";
                 const end = createRowAction("End visit", "security-end-button", visitor);

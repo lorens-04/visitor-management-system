@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0755b5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Scan Visitor Pass | ISATU Security Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20260921-2">
+    <link rel="stylesheet" href="style.css?v=20260922-2">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body class="admin-page security-page security-scan-page">
@@ -127,6 +127,9 @@
                             <dl class="security-result-details" id="scanResultDetails" hidden>
                                 <div><dt>Visitor</dt><dd id="scanVisitorName">-</dd></div>
                                 <div><dt>Destination</dt><dd id="scanDestination">-</dd></div>
+                                <div id="scanScheduleRow" hidden><dt>Schedule</dt><dd id="scanSchedule">-</dd></div>
+                                <div id="scanWindowRow" hidden><dt>Pass window</dt><dd id="scanWindow">-</dd></div>
+                                <div id="scanTimeInRow" hidden><dt>Time in</dt><dd id="scanTimeIn">-</dd></div>
                             </dl>
                             <button class="security-override-button" id="openQrOverrideBtn" type="button" hidden>Authorize time override</button>
                             <button class="security-scan-next" id="scanNextBtn" type="button" hidden>Scan next visitor</button>
@@ -183,6 +186,6 @@
     </dialog>
 
     <script src="auth.js?v=20260917-3"></script>
-    <script src="security_scan.js?v=20260921-2"></script>
+    <script src="security_scan.js?v=20260922-2"></script>
 </body>
 </html>

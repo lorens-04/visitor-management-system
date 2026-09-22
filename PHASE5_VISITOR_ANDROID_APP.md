@@ -32,7 +32,8 @@ endpoints correctly returned HTTP 401 without a bearer token.
 - `window_closed` and `completed` both display as **Appointment done**; there is no
   no-show label.
 - Tracking consent is accepted during account creation and copied into an auditable
-  visit record. Android permission is asked separately only after Security check-in.
+  visit record. Android's required operating-system location permission is requested as
+  part of signup; it is separate from legal consent and does not start collection.
 - A foreground notification remains visible while tracking. Offline points stay on the
   phone until the API accepts them.
 - Android 13 and newer users receive an in-app explanation and button for enabling
@@ -63,7 +64,7 @@ endpoints correctly returned HTTP 401 without a bearer token.
 | Authentication UI | `ui/AuthScreens.kt` |
 | Home, visits, Notifications and Profile | `ui/MainScreens.kt` |
 | Walk-in and appointment registration | `ui/BookingScreen.kt` |
-| QR, rescheduling and tracking UI | `ui/AppointmentDetailScreen.kt` |
+| QR, rescheduling and automatic post-scan tracking UI | `ui/AppointmentDetailScreen.kt` |
 
 ## Remaining Phase 5 acceptance work
 

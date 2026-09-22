@@ -59,6 +59,12 @@
     const scanResultDetails = document.getElementById("scanResultDetails");
     const scanVisitorName = document.getElementById("scanVisitorName");
     const scanDestination = document.getElementById("scanDestination");
+    const scanScheduleRow = document.getElementById("scanScheduleRow");
+    const scanSchedule = document.getElementById("scanSchedule");
+    const scanWindowRow = document.getElementById("scanWindowRow");
+    const scanWindow = document.getElementById("scanWindow");
+    const scanTimeInRow = document.getElementById("scanTimeInRow");
+    const scanTimeIn = document.getElementById("scanTimeIn");
     const openOverrideBtn = document.getElementById("openQrOverrideBtn");
     const scanNextBtn = document.getElementById("scanNextBtn");
     const overrideDialog = document.getElementById("qrOverrideDialog");
@@ -77,6 +83,7 @@
     let lastSentAt = 0;
     let pendingOverride = null;
     let photoMode = false;
+    let photoScanSequence = 0;
 
     function canUseLiveCamera() {
         return window.isSecureContext || ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
@@ -134,6 +141,9 @@
         scanResultTitle.textContent = "Waiting for a visitor pass";
         scanResultText.textContent = "A successful scan will show the visitor details here.";
         scanResultDetails.hidden = true;
+        scanScheduleRow.hidden = true;
+        scanWindowRow.hidden = true;
+        scanTimeInRow.hidden = true;
         openOverrideBtn.hidden = true;
         scanNextBtn.hidden = true;
         pendingOverride = null;
@@ -166,20 +176,94 @@
         }).format(date);
     }
 
+    function formatPassWindow(data) {
+        if (!data || (!data.qr_valid_from && !data.qr_valid_until)) {
+            return "";
+        }
+        if (data.qr_valid_from && data.qr_valid_until) {
+            return formatSchedule(data.qr_valid_from) + " to " + formatSchedule(data.qr_valid_until);
+        }
+        return formatSchedule(data.qr_valid_from || data.qr_valid_until);
+    }
+
+    function updateResultDetails(data) {
+        const hasAppointment = Boolean(data && data.appointment_id);
+        scanResultDetails.hidden = !hasAppointment;
+        if (!hasAppointment) {
+            scanScheduleRow.hidden = true;
+            scanWindowRow.hidden = true;
+            return;
+        }
+
+        scanVisitorName.textContent = data.visitor_full_name || "Visitor";
+        scanDestination.textContent = data.office_label || "Not specified";
+
+        const hasSchedule = Boolean(data.scheduled_start_at);
+        scanScheduleRow.hidden = !hasSchedule;
+        scanSchedule.textContent = hasSchedule
+            ? formatSchedule(data.scheduled_start_at) + (data.scheduled_end_at ? " to " + formatSchedule(data.scheduled_end_at) : "")
+            : "-";
+
+        const passWindow = formatPassWindow(data);
+        scanWindowRow.hidden = !passWindow;
+        scanWindow.textContent = passWindow || "-";
+
+        const hasTimeIn = Boolean(data.checked_in_at);
+        scanTimeInRow.hidden = !hasTimeIn;
+        scanTimeIn.textContent = hasTimeIn ? formatSchedule(data.checked_in_at) : "-";
+    }
+
+    function errorPresentation(message, data) {
+        const normalizedMessage = String(message || "").toLowerCase();
+        if (data && data.window_state === "too_early") {
+            return {
+                label: "Pass not active yet",
+                title: "Check-in opens 30 minutes before the visit",
+            };
+        }
+        if (data && (data.window_state === "closed" || data.status === "window_closed" || data.status === "completed")) {
+            return { label: "Pass expired", title: "This appointment is already finished" };
+        }
+        if (data && data.status === "pending_approval") {
+            return { label: "Awaiting approval", title: "The office has not approved this visit yet" };
+        }
+        if (data && data.status === "reschedule_proposed") {
+            return { label: "Visitor response needed", title: "The proposed schedule must be accepted first" };
+        }
+        if (data && ["rejected", "cancelled", "unanswered"].includes(data.status)) {
+            return { label: "Pass inactive", title: "This appointment cannot be checked in" };
+        }
+        if (normalizedMessage.includes("no readable qr") || normalizedMessage.includes("invalid or incomplete")) {
+            return { label: "QR not read", title: "The visitor pass could not be read" };
+        }
+        if (normalizedMessage.includes("no appointment found") || normalizedMessage.includes("invalid qr")) {
+            return { label: "Pass not recognized", title: "This is not a valid visitor pass" };
+        }
+        if (normalizedMessage.includes("server") || normalizedMessage.includes("service") || normalizedMessage.includes("database")) {
+            return { label: "Service unavailable", title: "The check-in service is not responding" };
+        }
+        return { label: "Pass not accepted", title: "Check-in unsuccessful" };
+    }
+
+    function revealScanResult() {
+        window.requestAnimationFrame(function () {
+            scanResult.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    }
+
     function showErrorResult(message, data) {
+        const presentation = errorPresentation(message, data);
         scanResult.className = "security-scan-result is-error";
-        scanResultLabel.textContent = "Pass not accepted";
-        scanResultTitle.textContent = "Check-in unsuccessful";
+        scanResultLabel.textContent = presentation.label;
+        scanResultTitle.textContent = presentation.title;
         scanResultText.textContent = message || "The visitor pass could not be verified.";
         const canOverride = Boolean(data && data.can_override && data.appointment_id);
         pendingOverride = canOverride ? { token: lastSentToken, appointment: data } : null;
-        scanResultDetails.hidden = !canOverride;
+        updateResultDetails(data);
         openOverrideBtn.hidden = !canOverride;
-        scanNextBtn.hidden = !canOverride;
-        if (canOverride) {
-            scanVisitorName.textContent = data.visitor_full_name || "Visitor";
-            scanDestination.textContent = data.office_label || "Not specified";
-        }
+        scanNextBtn.textContent = "Try another pass";
+        scanNextBtn.hidden = false;
+        revealScanResult();
     }
 
     function showSuccessResult(data) {
@@ -188,14 +272,14 @@
         scanResultLabel.textContent = alreadyCheckedIn ? "Already checked in" : "Check-in complete";
         scanResultTitle.textContent = alreadyCheckedIn ? "This pass was already used" : "Visitor checked in successfully";
         scanResultText.textContent = alreadyCheckedIn
-            ? "No duplicate check-in was created."
-            : "The visitor can now proceed to the listed destination.";
-        scanVisitorName.textContent = data.visitor_full_name || "Visitor";
-        scanDestination.textContent = data.office_label || "Not specified";
-        scanResultDetails.hidden = false;
+            ? "Status: Active. No duplicate check-in was created."
+            : "Status: Active. Time in was recorded and the visitor app can now start campus tracking.";
+        updateResultDetails(data);
         openOverrideBtn.hidden = true;
+        scanNextBtn.textContent = "Scan next visitor";
         scanNextBtn.hidden = false;
         pendingOverride = null;
+        revealScanResult();
     }
 
     function pauseScanner() {
@@ -211,6 +295,7 @@
 
     function prepareNextScan() {
         window.clearTimeout(nextScanTimer);
+        photoScanSequence += 1;
         scanLocked = false;
         submitTokenBtn.disabled = false;
         setImageScanDisabled(false);
@@ -265,7 +350,13 @@
             body: JSON.stringify({ token: token }),
         })
             .then(function (response) {
-                return response.json();
+                return response.text().then(function (body) {
+                    try {
+                        return JSON.parse(body);
+                    } catch (error) {
+                        throw new Error("The check-in service returned an invalid response. Confirm that Apache and MySQL are running, then try again.");
+                    }
+                });
             })
             .then(function (data) {
                 if (!data || !data.success) {
@@ -283,13 +374,12 @@
 
                 pauseScanner();
                 showSuccessResult(data);
-                nextScanTimer = window.setTimeout(prepareNextScan, 6000);
             })
-            .catch(function () {
+            .catch(function (error) {
                 scanLocked = false;
                 submitTokenBtn.disabled = false;
                 setImageScanDisabled(false);
-                showErrorResult("Could not reach the check-in server. Check the connection and try again.", null);
+                showErrorResult(error.message || "Could not reach the check-in server. Confirm that Apache and MySQL are running, then try again.", null);
             });
     }
 
@@ -464,8 +554,132 @@
             });
     }
 
+    function decodedTextFromResult(result) {
+        if (typeof result === "string") {
+            return result;
+        }
+        return result && result.decodedText ? result.decodedText : "";
+    }
+
+    async function decodeWithNativeDetector(file) {
+        if (!("BarcodeDetector" in window) || !("createImageBitmap" in window)) {
+            return "";
+        }
+
+        let bitmap = null;
+        try {
+            const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+            bitmap = await window.createImageBitmap(file);
+            const results = await detector.detect(bitmap);
+            return results && results[0] && results[0].rawValue ? results[0].rawValue : "";
+        } catch (error) {
+            return "";
+        } finally {
+            if (bitmap && typeof bitmap.close === "function") {
+                bitmap.close();
+            }
+        }
+    }
+
+    async function decodeWithHtml5Qrcode(file) {
+        if (typeof Html5Qrcode === "undefined") {
+            return "";
+        }
+        if (!scanner) {
+            scanner = new Html5Qrcode(readerId);
+        }
+
+        try {
+            if (typeof scanner.scanFileV2 === "function") {
+                return decodedTextFromResult(await scanner.scanFileV2(file, false));
+            }
+            return decodedTextFromResult(await scanner.scanFile(file, false));
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function loadPhoto(file) {
+        return new Promise(function (resolve, reject) {
+            const objectUrl = URL.createObjectURL(file);
+            const image = new Image();
+            image.onload = function () {
+                URL.revokeObjectURL(objectUrl);
+                resolve(image);
+            };
+            image.onerror = function () {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error("Photo could not be opened"));
+            };
+            image.src = objectUrl;
+        });
+    }
+
+    function canvasFile(canvas, name) {
+        return new Promise(function (resolve) {
+            canvas.toBlob(function (blob) {
+                resolve(blob ? new File([blob], name, { type: "image/png" }) : null);
+            }, "image/png");
+        });
+    }
+
+    async function createQrPhotoVariants(file) {
+        try {
+            const image = await loadPhoto(file);
+            const maxSide = 1800;
+            const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+            const width = Math.max(1, Math.round(image.naturalWidth * scale));
+            const height = Math.max(1, Math.round(image.naturalHeight * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d", { willReadFrequently: true });
+            if (!context) {
+                return [];
+            }
+            context.drawImage(image, 0, 0, width, height);
+
+            const resized = await canvasFile(canvas, "visitor-pass-resized.png");
+            const pixels = context.getImageData(0, 0, width, height);
+            for (let index = 0; index < pixels.data.length; index += 4) {
+                const luminance = (pixels.data[index] * 0.299) + (pixels.data[index + 1] * 0.587) + (pixels.data[index + 2] * 0.114);
+                const value = luminance > 155 ? 255 : 0;
+                pixels.data[index] = value;
+                pixels.data[index + 1] = value;
+                pixels.data[index + 2] = value;
+            }
+            context.putImageData(pixels, 0, 0);
+            const highContrast = await canvasFile(canvas, "visitor-pass-contrast.png");
+            return [resized, highContrast].filter(Boolean);
+        } catch (error) {
+            return [];
+        }
+    }
+
+    async function decodeQrPhoto(file) {
+        let decodedText = await decodeWithNativeDetector(file);
+        if (!decodedText) {
+            decodedText = await decodeWithHtml5Qrcode(file);
+        }
+        if (decodedText) {
+            return decodedText;
+        }
+
+        const variants = await createQrPhotoVariants(file);
+        for (const variant of variants) {
+            decodedText = await decodeWithNativeDetector(variant);
+            if (!decodedText) {
+                decodedText = await decodeWithHtml5Qrcode(variant);
+            }
+            if (decodedText) {
+                return decodedText;
+            }
+        }
+        return "";
+    }
+
     function scanQrPhoto(file) {
-        if (!file || scanLocked || typeof Html5Qrcode === "undefined") {
+        if (!file || scanLocked) {
             return;
         }
 
@@ -479,6 +693,7 @@
         }
 
         photoMode = true;
+        const currentScan = ++photoScanSequence;
         setImageScanDisabled(true);
         setCameraStatus(
             "loading",
@@ -488,29 +703,34 @@
             "Keep this page open for a moment."
         );
 
-        if (!scanner) {
-            scanner = new Html5Qrcode(readerId);
-        }
-
         stopScanner()
             .then(function () {
-                if (typeof scanner.scanFileV2 === "function") {
-                    return scanner.scanFileV2(file, true).then(function (result) {
-                        return result && result.decodedText ? result.decodedText : "";
-                    });
-                }
-                return scanner.scanFile(file, true);
+                return decodeQrPhoto(file);
             })
             .then(function (decodedText) {
+                if (currentScan !== photoScanSequence) {
+                    return;
+                }
                 if (!decodedText) {
-                    throw new Error("No QR content returned");
+                    showPhotoReady();
+                    showErrorResult("No readable QR code was found, so no check-in request was sent. Keep the whole QR visible, avoid glare, and tap the camera checkmark or Use photo before returning.", null);
+                    return;
                 }
                 showPhotoReady();
                 checkIn(decodedText);
+            }, function () {
+                if (currentScan !== photoScanSequence || scanLocked) {
+                    return;
+                }
+                showPhotoReady();
+                showErrorResult("No readable QR code was found, so no check-in request was sent. Keep the whole QR visible, avoid glare, and tap the camera checkmark or Use photo before returning.", null);
             })
             .catch(function () {
+                if (currentScan !== photoScanSequence || scanLocked) {
+                    return;
+                }
                 showPhotoReady();
-                showErrorResult("No readable QR code was found. Keep the whole QR visible, avoid glare, and tap the camera checkmark or Use photo before returning.", null);
+                showErrorResult("The selected photo could not be processed. Try a screenshot of the QR code or enter the visitor pass code manually.", null);
             });
     }
 

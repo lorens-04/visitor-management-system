@@ -57,6 +57,8 @@ $details = [
     "scheduled_start_at" => $appt["scheduled_start_at"],
     "scheduled_end_at" => $appt["scheduled_end_at"],
     "status" => $appt["status"],
+    "checked_in_at" => $appt["checked_in_at"],
+    "completed_at" => $appt["completed_at"],
     "can_override" => false,
 ];
 
@@ -252,5 +254,7 @@ $conn->close();
 echo json_encode(array_merge($details, [
     "success" => true,
     "message" => "Check-in recorded. Visitor GPS can start.",
+    "status" => "checked_in",
+    "checked_in_at" => date("Y-m-d H:i:s"),
     "used_time_override" => $hasOverride,
 ]));

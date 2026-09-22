@@ -178,6 +178,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _state.value.selectedAppointment?.id?.let(::openAppointment)
     }
 
+    fun pollSelectedAppointment(id: Long) {
+        viewModelScope.launch {
+            if (_state.value.selectedAppointment?.id != id) return@launch
+            val appointment = runCatching { repository.appointment(id) }.getOrNull() ?: return@launch
+            if (_state.value.selectedAppointment?.id != id) return@launch
+            val tracking = if (appointment.status == "checked_in") {
+                runCatching { repository.tracking(id) }.getOrNull()
+            } else null
+            _state.update { it.copy(selectedAppointment = appointment, tracking = tracking) }
+        }
+    }
+
+    fun refreshTrackingSilently(id: Long) {
+        viewModelScope.launch {
+            val tracking = runCatching { repository.tracking(id) }.getOrNull() ?: return@launch
+            if (_state.value.selectedAppointment?.id == id) {
+                _state.update { it.copy(tracking = tracking) }
+            }
+        }
+    }
+
     fun cancelAppointment(id: Long, reason: String) = launchTask {
         repository.cancelAppointment(id, reason.trim())
         _state.update { it.copy(message = "Appointment cancelled.", selectedAppointment = null) }

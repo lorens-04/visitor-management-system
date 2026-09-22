@@ -1,5 +1,9 @@
 package ph.edu.isatu.visitor.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,13 +51,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 
 private enum class AuthMode { Login, Register, Recover }
+
+private data class PendingRegistration(
+    val email: String,
+    val name: String,
+    val contact: String,
+    val password: String,
+)
 
 @Composable
 fun AuthFlow(state: VisitorUiState, viewModel: AppViewModel) {
@@ -178,12 +191,43 @@ private fun ColumnScope.RegisterForm(
     busy: Boolean,
     onRegister: (String, String, String, String) -> Unit,
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var contact by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
     var trackingConsent by remember { mutableStateOf(false) }
+    var permissionRequestInProgress by remember { mutableStateOf(false) }
+    var pendingRegistration by remember { mutableStateOf<PendingRegistration?>(null) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        val registration = pendingRegistration
+        pendingRegistration = null
+        permissionRequestInProgress = false
+        registration?.let { onRegister(it.email, it.name, it.contact, it.password) }
+    }
+
+    val submitRegistration = {
+        val registration = PendingRegistration(email, name, contact, password)
+        val preciseLocationGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (preciseLocationGranted) {
+            onRegister(registration.email, registration.name, registration.contact, registration.password)
+        } else {
+            pendingRegistration = registration
+            permissionRequestInProgress = true
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
 
     AuthHeading("CREATE ACCOUNT", "Register once, then request and monitor your visits in the app.")
     PortalTextField(name, { name = it }, "Full name", { Icon(Icons.Rounded.Person, null) })
@@ -201,12 +245,13 @@ private fun ColumnScope.RegisterForm(
     }
     PrimaryButton(
         "Create account",
-        { onRegister(email, name, contact, password) },
+        submitRegistration,
         Modifier.fillMaxWidth(),
-        !busy && name.trim().length >= 2 && email.isNotBlank() && password.length >= 10 && trackingConsent,
+        !busy && !permissionRequestInProgress && name.trim().length >= 2 && email.isNotBlank() &&
+            password.length >= 10 && trackingConsent,
     )
     Text(
-        "After signup, you will be signed in immediately. Visit decisions and reminders are delivered through app notifications.",
+        "Android will ask once for precise location access when you create the account. Location sharing still begins only after Security scans your visitor pass and ends with the visit.",
         style = MaterialTheme.typography.bodySmall,
         color = MutedInk,
         textAlign = TextAlign.Center,

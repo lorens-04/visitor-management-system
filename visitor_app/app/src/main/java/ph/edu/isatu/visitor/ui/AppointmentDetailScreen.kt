@@ -1,6 +1,7 @@
 package ph.edu.isatu.visitor.ui
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -36,6 +37,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -43,6 +45,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import kotlinx.coroutines.delay
 import ph.edu.isatu.visitor.data.AppointmentDto
 import ph.edu.isatu.visitor.data.TrackingData
 import ph.edu.isatu.visitor.service.VisitorTrackingService
@@ -74,12 +78,78 @@ fun AppointmentDetailScreen(
     val context = LocalContext.current
     var showCancel by remember { mutableStateOf(false) }
     var selectedSlotId by remember { mutableLongStateOf(0L) }
-    var trackingRequested by remember { mutableStateOf(false) }
+    var trackingRequested by remember(appointment.id) { mutableStateOf(false) }
+    var locationPermissionMissing by remember(appointment.id) { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             VisitorTrackingService.start(context, appointment.id)
             trackingRequested = true
+            locationPermissionMissing = false
+        } else {
+            locationPermissionMissing = true
         }
+    }
+    val requestTrackingPermissions = {
+        val permissions = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+        }.toTypedArray()
+        permissionLauncher.launch(permissions)
+    }
+
+    LaunchedEffect(appointment.id, appointment.status) {
+        if (appointment.status == "approved" && appointment.qrPass != null) {
+            while (true) {
+                delay(3_000)
+                viewModel.pollSelectedAppointment(appointment.id)
+            }
+        }
+
+        if (appointment.status == "checked_in") {
+            val preciseLocationGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (preciseLocationGranted) {
+                VisitorTrackingService.start(context, appointment.id)
+                trackingRequested = true
+                delay(1_500)
+                viewModel.refreshTrackingSilently(appointment.id)
+            } else {
+                locationPermissionMissing = true
+                val permissions = buildList {
+                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+                }.toTypedArray()
+                permissionLauncher.launch(permissions)
+            }
+            while (true) {
+                delay(10_000)
+                viewModel.pollSelectedAppointment(appointment.id)
+            }
+        }
+    }
+
+    if (appointment.status == "checked_in") {
+        TrackingMapScreen(
+            appointment = appointment,
+            tracking = tracking,
+            trackingStarting = trackingRequested,
+            locationPermissionMissing = locationPermissionMissing,
+            onBack = viewModel::closeAppointment,
+            onRequestLocationPermission = requestTrackingPermissions,
+            onRefresh = {
+                viewModel.pollSelectedAppointment(appointment.id)
+                viewModel.refreshTrackingSilently(appointment.id)
+            },
+            onWithdrawConsent = {
+                VisitorTrackingService.stop(context, appointment.id)
+                viewModel.withdrawConsent(appointment.id)
+            },
+        )
+        return
     }
 
     DetailScaffold(
@@ -150,7 +220,7 @@ fun AppointmentDetailScreen(
                 item {
                     QrPassCard(
                         appointment = appointment,
-                        payload = pass.payload,
+                        payload = pass.token.ifBlank { pass.payload },
                         validFrom = pass.validFrom,
                         validUntil = pass.validUntil,
                         currentlyValid = pass.currentlyValid,
@@ -193,33 +263,6 @@ fun AppointmentDetailScreen(
                             !busy && selectedSlotId > 0,
                         )
                     }
-                }
-            }
-            if (appointment.status == "checked_in") {
-                item {
-                    TrackingCard(
-                        tracking = tracking,
-                        startRequested = trackingRequested,
-                        busy = busy,
-                        onRequestPermission = {
-                            val permissions = buildList {
-                                add(Manifest.permission.ACCESS_FINE_LOCATION)
-                                add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
-                            }.toTypedArray()
-                            permissionLauncher.launch(permissions)
-                        },
-                        onStop = {
-                            VisitorTrackingService.stop(context, appointment.id)
-                            trackingRequested = false
-                            viewModel.refreshTracking(appointment.id)
-                        },
-                        onWithdraw = {
-                            VisitorTrackingService.stop(context, appointment.id)
-                            viewModel.withdrawConsent(appointment.id)
-                        },
-                        onRefresh = { viewModel.refreshTracking(appointment.id) },
-                    )
                 }
             }
             if (appointment.status in listOf("pending_approval", "approved", "reschedule_proposed")) {
@@ -327,42 +370,6 @@ private fun QrPassCard(
                 textAlign = TextAlign.Center,
             )
             Text("Do not share screenshots of your pass.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
-private fun TrackingCard(
-    tracking: TrackingData?,
-    startRequested: Boolean,
-    busy: Boolean,
-    onRequestPermission: () -> Unit,
-    onStop: () -> Unit,
-    onWithdraw: () -> Unit,
-    onRefresh: () -> Unit,
-) {
-    val active = tracking?.session?.active == true || startRequested
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F1FF)), shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.LocationOn, contentDescription = null, tint = IsatuBlue)
-                Spacer(Modifier.size(8.dp))
-                Text("Checked-in location sharing", style = MaterialTheme.typography.titleMedium)
-            }
-            Text(
-                if (active) "Sharing is active. A persistent Android notification stays visible while locations are collected."
-                else "Security has checked you in. Start sharing from this screen; Android will ask for precise location permission.",
-                color = MutedInk,
-            )
-            if (active) {
-                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Stop on this phone") }
-            } else {
-                PrimaryButton("Start location sharing", onRequestPermission, Modifier.fillMaxWidth(), !busy)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onRefresh) { Text("Refresh status") }
-                TextButton(onClick = onWithdraw) { Text("Withdraw consent", color = MaterialTheme.colorScheme.error) }
-            }
         }
     }
 }

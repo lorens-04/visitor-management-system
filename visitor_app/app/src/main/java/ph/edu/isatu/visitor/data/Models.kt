@@ -101,6 +101,7 @@ data class OfficeSummaryDto(val code: String = "", val name: String = "")
 
 data class QrPassDto(
     val payload: String = "",
+    val token: String = "",
     val validFrom: String = "",
     val validUntil: String = "",
     val currentlyValid: Boolean = false,
