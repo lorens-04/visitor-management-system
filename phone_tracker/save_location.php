@@ -2,8 +2,10 @@
 header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/session_bootstrap.php";
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/appointment_maintenance.php";
 
 require_roles_json(["visitor"]);
+refresh_appointment_time_states($conn);
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -15,7 +17,6 @@ if (!is_array($data)) {
     exit;
 }
 
-$device_name = isset($data["device_name"]) ? trim($data["device_name"]) : "My Phone";
 $appointmentToken = isset($data["appointment_token"]) ? preg_replace("/[^a-f0-9]/i", "", (string) $data["appointment_token"]) : "";
 $latitude = isset($data["latitude"]) ? $data["latitude"] : null;
 $longitude = isset($data["longitude"]) ? $data["longitude"] : null;
@@ -47,7 +48,7 @@ if (!is_numeric($latitude) || !is_numeric($longitude)) {
 
 $visitorUserId = (int) $_SESSION["user_id"];
 $check = $conn->prepare(
-    "SELECT status FROM appointments WHERE public_token = ? AND visitor_user_id = ? LIMIT 1"
+    "SELECT id, status, device_name FROM appointments WHERE public_token = ? AND visitor_user_id = ? LIMIT 1"
 );
 if (!$check) {
     echo json_encode([
@@ -79,7 +80,30 @@ if ($appointment["status"] !== "checked_in") {
     exit;
 }
 
-$stmt = $conn->prepare("INSERT INTO locations (device_name, latitude, longitude, accuracy) VALUES (?, ?, ?, ?)");
+$appointmentId = (int) $appointment["id"];
+$device_name = (string) $appointment["device_name"];
+$consent = $conn->prepare(
+    "SELECT id FROM visitor_consents
+     WHERE appointment_id = ? AND visitor_user_id = ? AND consent_type = 'location_tracking' AND withdrawn_at IS NULL
+     ORDER BY id DESC LIMIT 1"
+);
+if (!$consent) {
+    echo json_encode(["success" => false, "message" => "Database update required. Run phase1_workflow_migration.sql."]);
+    exit;
+}
+$consent->bind_param("ii", $appointmentId, $visitorUserId);
+$consent->execute();
+$hasConsent = (bool) $consent->get_result()->fetch_assoc();
+$consent->close();
+if (!$hasConsent) {
+    echo json_encode(["success" => false, "message" => "Active location-tracking consent was not found"]);
+    exit;
+}
+
+$stmt = $conn->prepare(
+    "INSERT INTO locations (appointment_id, visitor_user_id, device_name, latitude, longitude, accuracy)
+     VALUES (?, ?, ?, ?, ?, ?)"
+);
 if (!$stmt) {
     echo json_encode([
         "success" => false,
@@ -91,7 +115,7 @@ if (!$stmt) {
 $latValue = (float) $latitude;
 $lngValue = (float) $longitude;
 $accuracyValue = is_numeric($accuracy) ? (float) $accuracy : null;
-$stmt->bind_param("sddd", $device_name, $latValue, $lngValue, $accuracyValue);
+$stmt->bind_param("iisddd", $appointmentId, $visitorUserId, $device_name, $latValue, $lngValue, $accuracyValue);
 
 if ($stmt->execute()) {
     echo json_encode([

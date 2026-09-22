@@ -3,244 +3,419 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — Phone GPS Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <title>ISATU Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=20260919-2">
 </head>
-<body>
-    <div class="container container-wide">
-        <header class="page-header">
-            <div>
-                <h1>Admin dashboard</h1>
-                <p class="muted" id="adminWelcome">Manage users in MySQL (<code>app_users</code>)</p>
+<body class="admin-page">
+    <header class="admin-topbar">
+        <a class="admin-brand" href="admin.html" aria-label="ISATU Admin Dashboard home">
+            <span class="admin-brand-mark" aria-hidden="true">
+                <img src="assets/images/isatu-logo.png" alt="">
+            </span>
+            <span>ISATU Admin Dashboard</span>
+        </a>
+
+        <div class="admin-topbar-actions">
+            <button class="admin-icon-button" id="notificationBtn" type="button" aria-label="Show pending appointments" aria-expanded="false" aria-controls="notificationPanel">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                <span class="admin-notification-count" id="notificationCount" hidden>0</span>
+            </button>
+            <section class="admin-notification-panel" id="notificationPanel" aria-labelledby="notificationTitle" hidden>
+                <div class="admin-notification-header">
+                    <div>
+                        <strong id="notificationTitle">Pending appointments</strong>
+                        <span id="notificationSummary">Nothing needs attention</span>
+                    </div>
+                    <button type="button" id="closeNotificationsBtn" aria-label="Close notifications">×</button>
+                </div>
+                <div class="admin-notification-list" id="notificationList"></div>
+                <p class="admin-notification-empty" id="notificationEmpty">No pending appointments right now.</p>
+                <button class="admin-notification-view" id="viewPendingBtn" type="button">View pending appointments</button>
+            </section>
+            <button class="admin-profile-button" id="profileBtn" type="button" aria-expanded="false" aria-controls="profileMenu">
+                <span class="admin-avatar" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+                </span>
+                <span class="admin-profile-copy">
+                    <strong id="profileName">Administrator</strong>
+                    <small>Admin</small>
+                </span>
+                <svg class="admin-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+            </button>
+            <div class="admin-profile-menu" id="profileMenu" hidden>
+                <p>Signed in as <strong id="profileUsername">admin</strong></p>
+                <button type="button" id="logoutBtn">Sign out</button>
             </div>
-            <nav class="header-actions">
-                <a class="link-button" href="dashboard.html">Monitor visitors</a>
-                <a class="link-button" href="offices.html">Appointments</a>
-                <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+        </div>
+    </header>
+
+    <div class="admin-layout">
+        <aside class="admin-sidebar" aria-label="Admin navigation">
+            <nav>
+                <button class="admin-nav-item is-active" type="button" data-admin-view="dashboard">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+                    <span>Admin Dashboard</span>
+                </button>
+                <button class="admin-nav-item" type="button" data-admin-view="users">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>User Management</span>
+                </button>
+                <button class="admin-nav-item" type="button" data-admin-view="analytics">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 16l4-5 4 3 5-7"/></svg>
+                    <span>Visitor Analytics</span>
+                </button>
             </nav>
-        </header>
+        </aside>
 
-        <section class="panel">
-            <h2>Add user</h2>
-            <div class="form-row">
-                <label for="newUsername">Username</label>
-                <input type="text" id="newUsername" placeholder="login name" autocomplete="off" required>
-            </div>
-            <div class="form-row">
-                <label for="newPassword">Password</label>
-                <input type="password" id="newPassword" placeholder="min 6 characters" autocomplete="new-password" required>
-            </div>
-            <div class="form-row">
-                <label for="newDisplayName">Display name</label>
-                <input type="text" id="newDisplayName" placeholder="shown in lists" autocomplete="off">
-            </div>
-            <div class="form-row">
-                <label for="newUserRole">Role</label>
-                <select id="newUserRole">
-                    <option value="security">Security / Staff</option>
-                    <option value="visitor">Visitor</option>
-                    <option value="offices">Offices</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <p class="login-error" id="adminFormError" hidden></p>
-            <button type="button" id="addUserBtn">Add user</button>
-        </section>
+        <main class="admin-main">
+            <section class="admin-view" id="dashboardView" data-view-panel="dashboard">
+                <div class="admin-mobile-heading">
+                    <p class="admin-eyebrow">Overview</p>
+                    <h1>Admin Dashboard</h1>
+                </div>
 
-        <section class="panel">
-            <h2>Users</h2>
-            <p class="login-error" id="adminListError" hidden></p>
-            <div class="table-wrap">
-                <table class="data-table" id="usersTable">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Display name</th>
-                            <th>Role</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersBody"></tbody>
-                </table>
-            </div>
-            <p class="muted small" id="usersEmpty" hidden>No users yet.</p>
-        </section>
+                <div class="admin-stat-grid" aria-label="Visitor summary">
+                    <button class="admin-stat-card" type="button" data-visitor-filter="checked_in">
+                        <strong class="is-green" id="activeVisitorCount">0</strong>
+                        <span>Active Visitors</span>
+                        <small>Currently checked in</small>
+                    </button>
+                    <button class="admin-stat-card" type="button" data-visitor-filter="pending_approval">
+                        <strong class="is-orange" id="pendingApprovalCount">0</strong>
+                        <span>Pending Approvals</span>
+                        <small>Awaiting check-in</small>
+                    </button>
+                    <button class="admin-stat-card admin-stat-card-icon" id="recentActivitiesBtn" type="button">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+                        <span>Recent Activities</span>
+                        <small id="recentActivitySummary">No activity yet</small>
+                    </button>
+                </div>
+
+                <section class="admin-content-card" aria-labelledby="recentVisitorsTitle">
+                    <div class="admin-section-header">
+                        <div>
+                            <h2 id="recentVisitorsTitle">Recent Visitors</h2>
+                            <p id="dashboardDate">Latest appointment activity</p>
+                        </div>
+                        <div class="admin-table-tools">
+                            <label class="admin-select-label" for="visitorStatusFilter">
+                                <span>Filter</span>
+                                <select id="visitorStatusFilter">
+                                    <option value="">All statuses</option>
+                                    <option value="checked_in">Active</option>
+                                    <option value="pending_approval">Pending approval</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="reschedule_proposed">Reschedule proposed</option>
+                                    <option value="rejected">Declined</option>
+                                    <option value="unanswered">Office did not respond</option>
+                                    <option value="window_closed">Appointment done</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </label>
+                            <label class="admin-search" for="visitorSearch">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                                <input id="visitorSearch" type="search" placeholder="Search visitors" autocomplete="off">
+                            </label>
+                        </div>
+                    </div>
+
+                    <p class="admin-message is-error" id="dashboardError" role="alert" hidden></p>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Visitor</th>
+                                    <th>Type</th>
+                                    <th>Purpose</th>
+                                    <th>Destination</th>
+                                    <th>Subject</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentVisitorsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="admin-empty-state" id="recentVisitorsEmpty" hidden>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 8h5M19.5 5.5v5"/></svg>
+                        <strong>No visitor records yet</strong>
+                        <span>New appointments and check-ins will appear here automatically.</span>
+                    </div>
+                </section>
+
+                <section class="admin-content-card admin-activity-card" id="recentActivitiesSection" aria-labelledby="recentActivitiesTitle">
+                    <div class="admin-section-header">
+                        <div>
+                            <h2 id="recentActivitiesTitle">Recent Activities</h2>
+                            <p>Status changes from the appointment workflow</p>
+                        </div>
+                    </div>
+                    <div class="admin-activity-list" id="recentActivitiesList"></div>
+                    <div class="admin-empty-state is-compact" id="recentActivitiesEmpty" hidden>
+                        <strong>No activity yet</strong>
+                        <span>Appointment creation, check-ins, completions, and cancellations will appear here.</span>
+                    </div>
+                </section>
+            </section>
+
+            <section class="admin-view" id="usersView" data-view-panel="users" hidden>
+                <div class="admin-mobile-heading">
+                    <p class="admin-eyebrow">Accounts</p>
+                    <h1>User Management</h1>
+                </div>
+
+                <div class="admin-stat-grid" aria-label="User summary">
+                    <div class="admin-stat-card">
+                        <strong class="is-blue" id="totalUserCount">0</strong>
+                        <span>Total Users</span>
+                        <small>All registered accounts</small>
+                    </div>
+                    <div class="admin-stat-card">
+                        <strong class="is-green" id="activeUserCount">0</strong>
+                        <span>Active Users</span>
+                        <small>Enabled accounts</small>
+                    </div>
+                    <div class="admin-stat-card">
+                        <strong class="is-orange" id="suspendedUserCount">0</strong>
+                        <span>Suspended Users</span>
+                        <small>Disabled accounts</small>
+                    </div>
+                </div>
+
+                <section class="admin-content-card" aria-labelledby="directoryTitle">
+                    <div class="admin-section-header admin-directory-header">
+                        <div>
+                            <h2 id="directoryTitle">Personnel Directory</h2>
+                            <p>Security, admin, office personnel, and visitor accounts</p>
+                        </div>
+                        <div class="admin-table-tools">
+                            <button class="admin-text-action" id="sortUsersBtn" type="button">Sort A–Z</button>
+                            <label class="admin-search" for="userSearch">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                                <input id="userSearch" type="search" placeholder="Search users" autocomplete="off">
+                            </label>
+                            <button class="admin-primary-button" id="openAddUserBtn" type="button">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                                Add user
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="admin-filter-tabs" role="group" aria-label="Filter users by role">
+                        <button class="is-active" type="button" data-role-filter="">All Users</button>
+                        <button type="button" data-role-filter="admin">Admin</button>
+                        <button type="button" data-role-filter="security">Security</button>
+                        <button type="button" data-role-filter="offices">Office</button>
+                    </div>
+
+                    <p class="admin-message is-error" id="adminListError" role="alert" hidden></p>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Department</th>
+                                    <th>Account Status</th>
+                                    <th><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="admin-empty-state" id="usersEmpty" hidden>
+                        <strong>No matching users</strong>
+                        <span>Try a different role or search term.</span>
+                    </div>
+                    <div class="admin-pagination">
+                        <p id="usersShowing">Showing 0 users</p>
+                        <div class="admin-page-buttons" id="userPageButtons" aria-label="User list pages"></div>
+                    </div>
+                </section>
+            </section>
+
+            <section class="admin-view analytics-view" id="analyticsView" data-view-panel="analytics" hidden>
+                <header class="analytics-header">
+                    <div>
+                        <p class="admin-eyebrow">Trends and performance insights</p>
+                        <h1>Visitor Analytics</h1>
+                        <p id="analyticsRangeLabel">Current month</p>
+                    </div>
+                    <div class="analytics-actions">
+                        <div class="analytics-period-tabs" role="group" aria-label="Analytics period">
+                            <button type="button" data-analytics-period="today">Today</button>
+                            <button type="button" data-analytics-period="week">Week</button>
+                            <button class="is-active" type="button" data-analytics-period="month">Month</button>
+                            <button type="button" data-analytics-period="quarter">Quarter</button>
+                        </div>
+                        <a class="analytics-export-button" id="analyticsExportBtn" href="admin_analytics.php?period=month&amp;format=csv" download>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                            Export Report
+                        </a>
+                    </div>
+                </header>
+
+                <p class="admin-message is-error" id="analyticsError" role="alert" hidden></p>
+
+                <div class="analytics-summary-grid" aria-label="Visitor analytics summary">
+                    <article class="analytics-summary-card">
+                        <strong class="is-blue" id="analyticsTotalVisitors">0</strong>
+                        <span>Total Visitors</span>
+                        <small>Checked in during this period</small>
+                    </article>
+                    <article class="analytics-summary-card">
+                        <strong class="is-green" id="analyticsGpsTracked">0</strong>
+                        <span>GPS Tracked Now</span>
+                        <small>Active visitors reporting location</small>
+                    </article>
+                    <article class="analytics-summary-card">
+                        <strong class="is-orange" id="analyticsAverageDuration">—</strong>
+                        <span>Average Visit Duration</span>
+                        <small>Based on completed visits</small>
+                    </article>
+                </div>
+
+                <div class="analytics-primary-grid">
+                    <article class="analytics-card analytics-trend-card">
+                        <div class="analytics-card-header">
+                            <div>
+                                <h2>Visitor Trend</h2>
+                                <p>Check-ins and check-outs for the selected period</p>
+                            </div>
+                            <div class="analytics-legend" aria-label="Chart legend">
+                                <span><i class="is-checkin"></i>Check-ins</span>
+                                <span><i class="is-checkout"></i>Check-outs</span>
+                            </div>
+                        </div>
+                        <div class="analytics-chart-host">
+                            <svg id="visitorTrendChart" viewBox="0 0 680 270" role="img" aria-labelledby="visitorTrendChartTitle">
+                                <title id="visitorTrendChartTitle">Visitor check-in and check-out trend</title>
+                            </svg>
+                            <div class="analytics-chart-empty" id="visitorTrendEmpty" hidden>
+                                Check-in trends will appear after visitor activity is recorded.
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="analytics-card analytics-purpose-card">
+                        <div class="analytics-card-header">
+                            <div>
+                                <h2>Visit Purpose</h2>
+                                <p>Breakdown by recorded reason</p>
+                            </div>
+                        </div>
+                        <div class="analytics-purpose-content">
+                            <div class="analytics-donut" id="analyticsPurposeDonut" aria-label="Visit-purpose distribution">
+                                <span id="analyticsPurposeTotal">0</span>
+                                <small>visits</small>
+                            </div>
+                            <div class="analytics-purpose-legend" id="analyticsPurposeLegend"></div>
+                        </div>
+                        <div class="analytics-inline-empty" id="analyticsPurposeEmpty" hidden>
+                            Purpose analytics will activate when a <code>purpose</code> field is collected with appointments.
+                        </div>
+                    </article>
+                </div>
+
+                <article class="analytics-card analytics-heatmap-card">
+                    <div class="analytics-card-header">
+                        <div>
+                            <h2>Hourly Traffic Heatmap</h2>
+                            <p>Visitor check-in density by hour and day of week</p>
+                        </div>
+                        <div class="analytics-heat-legend" aria-label="Heat intensity legend">
+                            <span><i class="is-low"></i>Low</span>
+                            <span><i class="is-medium"></i>Medium</span>
+                            <span><i class="is-high"></i>High</span>
+                        </div>
+                    </div>
+                    <div class="analytics-heatmap-wrap" id="analyticsHeatmap"></div>
+                </article>
+
+                <div class="analytics-secondary-grid">
+                    <article class="analytics-card analytics-location-card">
+                        <div class="analytics-card-header">
+                            <div>
+                                <h2>GPS &amp; Location Activity Overview</h2>
+                                <p>Consent-based GPS activity from checked-in visitors</p>
+                            </div>
+                            <span class="analytics-live-pill" id="analyticsActiveTracks">0 active tracks</span>
+                        </div>
+                        <div class="analytics-location-metrics" id="analyticsLocationMetrics"></div>
+                        <div class="analytics-zones" id="analyticsZones"></div>
+                        <div class="analytics-inline-empty" id="analyticsZonesEmpty" hidden>
+                            Campus zones are not configured yet. Your backend developer can add a <code>zone_name</code> field or geofence mapping later.
+                        </div>
+                    </article>
+
+                    <article class="analytics-card analytics-insights-card">
+                        <div class="analytics-card-header">
+                            <div>
+                                <h2>Performance Insights</h2>
+                                <p>Automatically generated patterns and exceptions</p>
+                            </div>
+                        </div>
+                        <div class="analytics-insight-list" id="analyticsInsightList"></div>
+                    </article>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <script src="auth.js"></script>
-    <script>
-        (function () {
-            if (!PhoneTrackerAuth.requireRole(["admin"])) {
-                return;
-            }
+    <dialog class="admin-dialog" id="addUserDialog" aria-labelledby="addUserTitle">
+        <form id="addUserForm">
+            <div class="admin-dialog-header">
+                <div>
+                    <p class="admin-eyebrow">New account</p>
+                    <h2 id="addUserTitle">Add user</h2>
+                </div>
+                <button class="admin-dialog-close" id="closeAddUserBtn" type="button" aria-label="Close">×</button>
+            </div>
+            <div class="admin-form-grid">
+                <label>
+                    <span>Username</span>
+                    <input type="text" id="newUsername" autocomplete="off" maxlength="64" required>
+                </label>
+                <label>
+                    <span>Display name</span>
+                    <input type="text" id="newDisplayName" autocomplete="off" maxlength="100">
+                </label>
+                <label>
+                    <span>Password</span>
+                    <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
+                </label>
+                <label>
+                    <span>Role</span>
+                    <select id="newUserRole">
+                        <option value="security">Security / Staff</option>
+                        <option value="visitor">Visitor</option>
+                        <option value="offices">Office Personnel</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </label>
+                <label class="admin-office-field" id="newUserOfficeField" hidden>
+                    <span>Office / Department</span>
+                    <select id="newUserOfficeCode">
+                        <option value="">Select office</option>
+                        <option value="IT">IT Department</option>
+                        <option value="IS">IS Department</option>
+                        <option value="CS">CS Department</option>
+                        <option value="DEANS">Dean's Office</option>
+                        <option value="TECH_SUPPORT">Tech Support</option>
+                    </select>
+                </label>
+            </div>
+            <p class="admin-message is-error" id="adminFormError" role="alert" hidden></p>
+            <div class="admin-dialog-actions">
+                <button class="admin-cancel-button" id="cancelAddUserBtn" type="button">Cancel</button>
+                <button class="admin-primary-button" id="addUserBtn" type="submit">Add user</button>
+            </div>
+        </form>
+    </dialog>
 
-            const dn = PhoneTrackerAuth.getDisplayName();
-            const un = PhoneTrackerAuth.getUsername();
-            if (dn || un) {
-                document.getElementById("adminWelcome").textContent =
-                    "Signed in as " + (dn || un) + " — users are stored in MySQL (app_users).";
-            }
-
-            function roleLabel(role) {
-                const map = {
-                    security: "Security / Staff",
-                    visitor: "Visitor",
-                    offices: "Offices",
-                    admin: "Admin",
-                };
-                return map[role] || role;
-            }
-
-            const usersBody = document.getElementById("usersBody");
-            const usersEmpty = document.getElementById("usersEmpty");
-            const adminListError = document.getElementById("adminListError");
-            const adminFormError = document.getElementById("adminFormError");
-
-            function showListError(msg) {
-                adminListError.textContent = msg || "";
-                adminListError.hidden = !msg;
-            }
-
-            function showFormError(msg) {
-                adminFormError.textContent = msg || "";
-                adminFormError.hidden = !msg;
-            }
-
-            function escapeHtml(s) {
-                const d = document.createElement("div");
-                d.textContent = s;
-                return d.innerHTML;
-            }
-
-            function escapeAttr(s) {
-                return String(s).replace(/"/g, "&quot;");
-            }
-
-            function loadUsers() {
-                showListError("");
-                return fetch("list_users.php", { credentials: "same-origin" })
-                    .then(function (r) {
-                        return r.json();
-                    })
-                    .then(function (data) {
-                        if (!data || !data.success) {
-                            if (data && data.message === "Not authenticated") {
-                                window.location.href = "login.html";
-                                return;
-                            }
-                            showListError((data && data.message) || "Could not load users.");
-                            return;
-                        }
-                        const users = data.data || [];
-                        usersBody.innerHTML = "";
-                        users.forEach(function (u) {
-                            const tr = document.createElement("tr");
-                            const del =
-                                '<button type="button" class="button-danger button-small" data-id="' +
-                                escapeAttr(String(u.id)) +
-                                '">Remove</button>';
-                            tr.innerHTML =
-                                "<td>" +
-                                escapeHtml(u.username) +
-                                "</td><td>" +
-                                escapeHtml(u.display_name || "") +
-                                "</td><td>" +
-                                escapeHtml(roleLabel(u.role)) +
-                                "</td><td>" +
-                                del +
-                                "</td>";
-                            usersBody.appendChild(tr);
-                        });
-                        usersEmpty.hidden = users.length > 0;
-                    })
-                    .catch(function () {
-                        showListError("Network error loading users.");
-                    });
-            }
-
-            document.getElementById("addUserBtn").addEventListener("click", function () {
-                showFormError("");
-                const username = document.getElementById("newUsername").value.trim();
-                const password = document.getElementById("newPassword").value;
-                const displayName = document.getElementById("newDisplayName").value.trim();
-                const role = document.getElementById("newUserRole").value;
-
-                if (!username || !password) {
-                    showFormError("Username and password are required.");
-                    return;
-                }
-
-                document.getElementById("addUserBtn").disabled = true;
-                fetch("add_user.php", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username: username,
-                        password: password,
-                        display_name: displayName,
-                        role: role,
-                    }),
-                })
-                    .then(function (r) {
-                        return r.json();
-                    })
-                    .then(function (data) {
-                        if (!data || !data.success) {
-                            showFormError((data && data.message) || "Could not add user.");
-                            return;
-                        }
-                        document.getElementById("newUsername").value = "";
-                        document.getElementById("newPassword").value = "";
-                        document.getElementById("newDisplayName").value = "";
-                        loadUsers();
-                    })
-                    .catch(function () {
-                        showFormError("Network error.");
-                    })
-                    .finally(function () {
-                        document.getElementById("addUserBtn").disabled = false;
-                    });
-            });
-
-            usersBody.addEventListener("click", function (e) {
-                const btn = e.target.closest("button[data-id]");
-                if (!btn) {
-                    return;
-                }
-                const id = btn.getAttribute("data-id");
-                if (!confirm("Remove this user?")) {
-                    return;
-                }
-                fetch("delete_user.php", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: parseInt(id, 10) }),
-                })
-                    .then(function (r) {
-                        return r.json();
-                    })
-                    .then(function (data) {
-                        if (!data || !data.success) {
-                            alert((data && data.message) || "Could not delete user.");
-                            return;
-                        }
-                        loadUsers();
-                    })
-                    .catch(function () {
-                        alert("Network error.");
-                    });
-            });
-
-            document.getElementById("logoutBtn").addEventListener("click", function () {
-                PhoneTrackerAuth.logout().then(function () {
-                    window.location.href = "login.html";
-                });
-            });
-
-            loadUsers();
-        })();
-    </script>
+    <script src="auth.js?v=20260917-2"></script>
+    <script src="admin.js?v=20260918-3"></script>
 </body>
 </html>

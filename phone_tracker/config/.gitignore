@@ -1,0 +1,5 @@
+firebase-service-account.json
+mobile_api.php
+!.gitignore
+!mobile_api.example.php
+

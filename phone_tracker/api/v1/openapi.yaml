@@ -1,0 +1,415 @@
+openapi: 3.0.3
+info:
+  title: ISATU Visitor Mobile API
+  version: "1.0"
+  description: Versioned API used only by the native visitor Android application.
+servers:
+  - url: /visitor-management-system/phone_tracker/api/v1
+security:
+  - bearerAuth: []
+paths:
+  /health.php:
+    get:
+      security: []
+      summary: Check API and migration readiness
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /auth/register.php:
+    post:
+      security: []
+      summary: Register a visitor account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /auth/login.php:
+    post:
+      security: []
+      summary: Sign in and issue a bearer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /auth/logout.php:
+    post:
+      summary: Revoke the current bearer token
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/request_password_reset.php:
+    post:
+      security: []
+      summary: Queue password reset instructions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "429": { $ref: "#/components/responses/Error" }
+  /auth/reset_password.php:
+    post:
+      security: []
+      summary: Consume a password reset token and revoke old sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token, new_password]
+              properties:
+                email: { type: string, format: email }
+                token: { type: string, minLength: 64, maxLength: 64 }
+                new_password: { type: string, minLength: 10, maxLength: 128 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "422": { $ref: "#/components/responses/Error" }
+  /me.php:
+    get:
+      summary: Read the current visitor profile
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    patch:
+      summary: Update visitor name and contact number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name]
+              properties:
+                full_name: { type: string, maxLength: 100 }
+                contact_number: { type: string, maxLength: 32 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "422": { $ref: "#/components/responses/Error" }
+  /offices.php:
+    get:
+      summary: List the five official offices and availability rules
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /availability.php:
+    get:
+      summary: List bookable slots for one office and date
+      parameters:
+        - in: query
+          name: office_code
+          required: true
+          schema: { $ref: "#/components/schemas/OfficeCode" }
+        - in: query
+          name: date
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "422": { $ref: "#/components/responses/Error" }
+  /appointments.php:
+    get:
+      summary: List the current visitor's appointments
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/AppointmentStatus" }
+        - in: query
+          name: before_id
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    post:
+      summary: Create a walk-in pass or submit an appointment request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AppointmentRequest" }
+      responses:
+        "201": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /appointment.php:
+    get:
+      summary: Read appointment details, proposal, and eligible QR pass
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "404": { $ref: "#/components/responses/Error" }
+  /appointment_cancel.php:
+    post:
+      summary: Cancel an eligible visitor appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment_id]
+              properties:
+                appointment_id: { type: integer, minimum: 1 }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+  /reschedule_response.php:
+    post:
+      summary: Accept or decline an Office schedule proposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proposal_id, action]
+              properties:
+                proposal_id: { type: integer, minimum: 1 }
+                action: { type: string, enum: [accept, decline] }
+                selected_slot_id: { type: integer, minimum: 1, nullable: true }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+  /notifications.php:
+    get:
+      summary: List visitor notifications
+      parameters:
+        - in: query
+          name: unread_only
+          schema: { type: boolean, default: false }
+        - in: query
+          name: before_id
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /notification_read.php:
+    post:
+      summary: Mark one or every notification read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notification_id: { type: integer, minimum: 1 }
+                mark_all: { type: boolean }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /devices.php:
+    post:
+      summary: Register or rotate an Android FCM token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceRegistration" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    delete:
+      summary: Unregister an Android installation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [installation_id]
+              properties:
+                installation_id: { type: string, minLength: 8, maxLength: 191 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /consent.php:
+    get:
+      summary: Read appointment location consent
+      parameters:
+        - in: query
+          name: appointment_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    post:
+      summary: Grant or withdraw appointment location consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment_id, action]
+              properties:
+                appointment_id: { type: integer, minimum: 1 }
+                action: { type: string, enum: [grant, withdraw] }
+                consent_version: { type: string, maxLength: 32 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /tracking.php:
+    get:
+      summary: Read tracking eligibility, session, and server policy
+      parameters:
+        - in: query
+          name: appointment_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    post:
+      summary: Start or stop an appointment tracking session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment_id, action]
+              properties:
+                appointment_id: { type: integer, minimum: 1 }
+                action: { type: string, enum: [start, stop] }
+                client_session_id: { type: string, maxLength: 64 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+  /locations.php:
+    post:
+      summary: Upload an idempotent GPS batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tracking_session_id, points]
+              properties:
+                tracking_session_id: { type: integer, minimum: 1 }
+                points:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/LocationPoint" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: OpaqueToken
+  responses:
+    Success:
+      description: Successful API response
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/SuccessEnvelope" }
+    Error:
+      description: Error API response
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  schemas:
+    OfficeCode:
+      type: string
+      enum: [IT, IS, CS, DEANS, TECH_SUPPORT]
+    AppointmentStatus:
+      type: string
+      enum: [pending_approval, approved, rejected, cancelled, unanswered, reschedule_proposed, checked_in, completed, window_closed]
+    Meta:
+      type: object
+      required: [api_version, request_id]
+      properties:
+        api_version: { type: string, example: "1.0" }
+        request_id: { type: string, example: a1b2c3d4e5f60708 }
+    SuccessEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { type: object, additionalProperties: true }
+        message: { type: string }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ErrorEnvelope:
+      type: object
+      required: [success, message, meta]
+      properties:
+        success: { type: boolean, enum: [false] }
+        message: { type: string }
+        errors: { type: object, additionalProperties: true }
+        meta: { $ref: "#/components/schemas/Meta" }
+    RegisterRequest:
+      type: object
+      required: [email, full_name, password, tracking_consent, consent_version]
+      properties:
+        email: { type: string, format: email, maxLength: 190 }
+        full_name: { type: string, minLength: 2, maxLength: 100 }
+        contact_number: { type: string, maxLength: 32 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        tracking_consent: { type: boolean, enum: [true] }
+        consent_version: { type: string, maxLength: 32 }
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier: { type: string, maxLength: 190 }
+        password: { type: string, maxLength: 128 }
+        installation_id: { type: string, maxLength: 191 }
+        device_name: { type: string, maxLength: 100 }
+    AppointmentRequest:
+      type: object
+      required: [visit_type, office_code, purpose, subject, location_consent]
+      properties:
+        visit_type: { type: string, enum: [appointment, walk_in] }
+        office_code: { $ref: "#/components/schemas/OfficeCode" }
+        purpose: { type: string, maxLength: 100 }
+        subject: { type: string, maxLength: 150 }
+        additional_details: { type: string, maxLength: 3000 }
+        scheduled_start_at: { type: string, description: Required for appointments; ignored for walk-ins, example: "2026-09-21 09:00:00" }
+        scheduled_end_at: { type: string, description: Optional slot end for appointments; ignored for walk-ins, example: "2026-09-21 09:30:00" }
+        device_name: { type: string, maxLength: 100 }
+        location_consent:
+          type: object
+          required: [granted, version]
+          properties:
+            granted: { type: boolean, enum: [true] }
+            version: { type: string, maxLength: 32 }
+    DeviceRegistration:
+      type: object
+      required: [installation_id, fcm_token]
+      properties:
+        installation_id: { type: string, minLength: 8, maxLength: 191 }
+        fcm_token: { type: string, minLength: 20, maxLength: 2048 }
+        app_version: { type: string, maxLength: 32 }
+        device_model: { type: string, maxLength: 100 }
+    LocationPoint:
+      type: object
+      required: [client_event_id, latitude, longitude, captured_at]
+      properties:
+        client_event_id: { type: string, minLength: 8, maxLength: 64 }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        accuracy: { type: number, minimum: 0, maximum: 10000, nullable: true }
+        captured_at: { type: string, example: "2026-09-21 09:15:00" }

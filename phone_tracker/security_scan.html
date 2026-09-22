@@ -3,167 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scan visitor QR — Phone GPS Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#0755b5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Scan Visitor Pass | ISATU Security Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=20260922-2">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
-<body>
-    <div class="container">
-        <header class="page-header">
-            <div>
-                <h1>Scan visitor pass</h1>
-                <p class="muted">Point the camera at the visitor QR code or enter the code manually.</p>
+<body class="admin-page security-page security-scan-page">
+    <header class="admin-topbar">
+        <a class="admin-brand" href="dashboard.html?v=20260917-3" aria-label="ISATU Security Dashboard home">
+            <span class="admin-brand-mark" aria-hidden="true">
+                <img src="assets/images/isatu-logo.png" alt="">
+            </span>
+            <span>ISATU Security Dashboard</span>
+        </a>
+
+        <div class="admin-topbar-actions">
+            <button class="admin-profile-button" id="securityProfileBtn" type="button" aria-expanded="false" aria-controls="securityProfileMenu">
+                <span class="admin-avatar" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+                </span>
+                <span class="admin-profile-copy">
+                    <strong id="securityProfileName">Security Desk</strong>
+                    <small id="securityRoleLabel">Security</small>
+                </span>
+                <svg class="admin-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+            </button>
+            <div class="admin-profile-menu" id="securityProfileMenu" hidden>
+                <p>Signed in as <strong id="securityProfileUsername">security</strong></p>
+                <a class="security-admin-link" id="securityAdminLink" href="admin.html?v=20260917-2" hidden>Open Admin Dashboard</a>
+                <button type="button" id="logoutBtn">Sign out</button>
             </div>
-            <nav class="header-actions">
-                <a class="link-button" href="dashboard.html">Dashboard</a>
-                <button type="button" id="logoutBtn" class="button-secondary">Sign out</button>
+        </div>
+    </header>
+
+    <div class="admin-layout security-layout">
+        <aside class="admin-sidebar security-sidebar" aria-label="Security navigation">
+            <nav>
+                <a class="admin-nav-item" href="dashboard.html?v=20260917-3">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+                    <span>Security Dashboard</span>
+                </a>
+                <a class="admin-nav-item" href="dashboard.html?v=20260917-3#monitoring">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.35 7-11A7 7 0 0 0 5 10c0 6.65 7 11 7 11Zm0-8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+                    <span>Visitor Monitoring</span>
+                </a>
             </nav>
-        </header>
+        </aside>
 
-        <div id="reader" class="qr-reader"></div>
+        <main class="admin-main security-main security-scan-main">
+            <header class="security-scan-heading">
+                <div>
+                    <p class="admin-eyebrow">Visitor check-in</p>
+                    <h1>Scan visitor pass</h1>
+                    <p>Place the visitor's QR code inside the frame. A valid pass checks the visitor in automatically.</p>
+                </div>
+                <a class="security-scan-back" href="dashboard.html?v=20260917-3">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    Back to dashboard
+                </a>
+            </header>
 
-        <div class="panel">
-            <h2>Manual entry</h2>
-            <label for="tokenInput">64-character code</label>
-            <input type="text" id="tokenInput" autocomplete="off" spellcheck="false" placeholder="Paste code from visitor screen">
-            <button type="button" id="submitTokenBtn">Check in</button>
-        </div>
+            <div class="security-scan-workspace">
+                <section class="security-camera-card" aria-labelledby="cameraTitle">
+                    <div class="security-camera-header">
+                        <div>
+                            <h2 id="cameraTitle">Camera scanner</h2>
+                            <p id="cameraMessage">Requesting camera access...</p>
+                        </div>
+                        <span class="security-camera-state is-loading" id="cameraState">
+                            <i></i>
+                            <span>Starting</span>
+                        </span>
+                    </div>
 
-        <div class="status-box" id="scanResult" hidden>
-            <p id="scanResultText"></p>
-        </div>
+                    <div class="security-camera-viewport">
+                        <div id="reader" aria-label="QR code camera preview"></div>
+                        <div class="security-scanner-guide" aria-hidden="true">
+                            <span class="security-scanner-frame"></span>
+                            <span class="security-scanner-line"></span>
+                        </div>
+                        <div class="security-camera-placeholder" id="cameraPlaceholder">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+                            <strong id="cameraPlaceholderTitle">Connecting to camera</strong>
+                            <span id="cameraPlaceholderText">Live scanning needs HTTPS. Local testing can use a QR photo or screenshot.</span>
+                        </div>
+                    </div>
+
+                    <div class="security-camera-actions">
+                        <button class="security-photo-scan" id="scanQrPhotoBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+                            Take QR photo
+                        </button>
+                        <input id="qrPhotoInput" type="file" accept="image/*" capture="environment" hidden>
+                        <button class="security-gallery-scan" id="chooseQrImageBtn" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM7 15l3-3 2 2 2-2 3 3M8 9h.01"/></svg>
+                            Choose QR screenshot
+                        </button>
+                        <input id="qrImageInput" type="file" accept="image/*" hidden>
+                        <label id="cameraSelectField" hidden>
+                            <span>Camera</span>
+                            <select id="cameraSelect" aria-label="Select camera"></select>
+                        </label>
+                        <button class="security-camera-retry" id="retryCameraBtn" type="button" hidden>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+                            Try camera again
+                        </button>
+                        <p>After taking a photo, tap the camera app's checkmark or <strong>Use photo</strong> so it returns to this page. Do not open the QR link inside the camera app.</p>
+                    </div>
+                </section>
+
+                <aside class="security-scan-side">
+                    <section class="security-scan-result is-ready" id="scanResult" aria-live="polite">
+                        <span class="security-result-icon" aria-hidden="true">
+                            <svg class="security-result-ready-icon" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4M9 12h6"/></svg>
+                            <svg class="security-result-success-icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+                            <svg class="security-result-error-icon" viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01M10.3 3.8 2.7 17a2 2 0 0 0 1.73 3h15.14a2 2 0 0 0 1.73-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/></svg>
+                        </span>
+                        <div>
+                            <p class="security-result-label" id="scanResultLabel">Scanner ready</p>
+                            <h2 id="scanResultTitle">Waiting for a visitor pass</h2>
+                            <p id="scanResultText">A successful scan will show the visitor details here.</p>
+                            <dl class="security-result-details" id="scanResultDetails" hidden>
+                                <div><dt>Visitor</dt><dd id="scanVisitorName">-</dd></div>
+                                <div><dt>Destination</dt><dd id="scanDestination">-</dd></div>
+                                <div id="scanScheduleRow" hidden><dt>Schedule</dt><dd id="scanSchedule">-</dd></div>
+                                <div id="scanWindowRow" hidden><dt>Pass window</dt><dd id="scanWindow">-</dd></div>
+                                <div id="scanTimeInRow" hidden><dt>Time in</dt><dd id="scanTimeIn">-</dd></div>
+                            </dl>
+                            <button class="security-override-button" id="openQrOverrideBtn" type="button" hidden>Authorize time override</button>
+                            <button class="security-scan-next" id="scanNextBtn" type="button" hidden>Scan next visitor</button>
+                        </div>
+                    </section>
+
+                    <details class="security-manual-entry" id="manualEntry">
+                        <summary>
+                            <span>
+                                <strong>Can't scan the QR code?</strong>
+                                <small>Enter or paste the visitor pass code</small>
+                            </span>
+                            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+                        </summary>
+                        <form id="manualForm">
+                            <label for="tokenInput">Visitor pass code</label>
+                            <p>You can paste the code or the complete pass link shown on the visitor's screen.</p>
+                            <input type="text" id="tokenInput" autocomplete="off" spellcheck="false" placeholder="Paste visitor pass code">
+                            <button class="admin-primary-button" id="submitTokenBtn" type="submit">Check in visitor</button>
+                        </form>
+                    </details>
+
+                    <section class="security-scan-help">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+                        <p><strong>Why isn't the camera inside the box?</strong> Phone browsers block live camera streams on local HTTP addresses. Use a photo/screenshot for local testing; the embedded scanner becomes available after trusted HTTPS deployment.</p>
+                    </section>
+                </aside>
+            </div>
+        </main>
     </div>
 
-    <script src="auth.js"></script>
-    <script>
-        (function () {
-            if (!PhoneTrackerAuth.requireRole(["security", "admin"])) {
-                return;
-            }
+    <dialog class="admin-dialog security-override-dialog" id="qrOverrideDialog">
+        <form id="qrOverrideForm">
+            <header class="admin-dialog-header">
+                <div><p class="admin-eyebrow">Recorded security exception</p><h2>Authorize QR time override</h2></div>
+                <button class="admin-dialog-close" id="closeQrOverrideBtn" type="button" aria-label="Close">×</button>
+            </header>
+            <p class="security-override-help">Use this only when Security or Admin has confirmed that an early or expired visitor pass should be accepted. The reason will be stored in the audit log.</p>
+            <dl class="security-override-summary">
+                <div><dt>Visitor</dt><dd id="overrideVisitorName">—</dd></div>
+                <div><dt>Destination</dt><dd id="overrideDestination">—</dd></div>
+                <div><dt>Scheduled visit</dt><dd id="overrideSchedule">—</dd></div>
+            </dl>
+            <label class="office-field"><span>Reason for override</span><textarea id="qrOverrideReason" rows="4" minlength="5" maxlength="500" required placeholder="Explain why this visitor is being allowed outside the scheduled QR window"></textarea></label>
+            <label class="office-field"><span>Override remains valid for</span>
+                <select id="qrOverrideMinutes"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">1 hour</option></select>
+            </label>
+            <p class="admin-message is-error" id="qrOverrideError" role="alert" hidden></p>
+            <div class="admin-dialog-actions">
+                <button class="admin-cancel-button" id="cancelQrOverrideBtn" type="button">Cancel</button>
+                <button class="admin-primary-button" id="confirmQrOverrideBtn" type="submit">Authorize and check in</button>
+            </div>
+        </form>
+    </dialog>
 
-            document.getElementById("logoutBtn").addEventListener("click", function () {
-                PhoneTrackerAuth.logout().then(function () {
-                    window.location.href = "login.html";
-                });
-            });
-
-            const scanResult = document.getElementById("scanResult");
-            const scanResultText = document.getElementById("scanResultText");
-            const tokenInput = document.getElementById("tokenInput");
-
-            function normalizeToken(raw) {
-                if (!raw || typeof raw !== "string") {
-                    return "";
-                }
-                const t = raw.trim();
-                const hexOnly = t.replace(/[^a-f0-9]/gi, "");
-                if (hexOnly.length === 64) {
-                    return hexOnly.toLowerCase();
-                }
-                const m = t.match(/token=([a-f0-9]{64})/i);
-                if (m) {
-                    return m[1].toLowerCase();
-                }
-                return "";
-            }
-
-            function showResult(ok, message) {
-                scanResult.hidden = false;
-                scanResultText.textContent = message;
-                scanResult.style.borderLeft = ok ? "4px solid #16a34a" : "4px solid #dc2626";
-            }
-
-            let lastSentToken = "";
-            let lastSentAt = 0;
-
-            function checkIn(token) {
-                const t = normalizeToken(token);
-                if (t.length !== 64) {
-                    showResult(false, "That code does not look valid (need 64 hex characters).");
-                    return;
-                }
-
-                const now = Date.now();
-                if (t === lastSentToken && now - lastSentAt < 4000) {
-                    return;
-                }
-                lastSentToken = t;
-                lastSentAt = now;
-
-                fetch("scan_appointment.php", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ token: t }),
-                })
-                    .then(function (r) {
-                        return r.json();
-                    })
-                    .then(function (data) {
-                        if (!data || !data.success) {
-                            showResult(false, (data && data.message) || "Check-in failed.");
-                            return;
-                        }
-                        const extra = data.visitor_full_name
-                            ? " Visitor: " + data.visitor_full_name + ". Map device: " + (data.device_name || "-") + "."
-                            : "";
-                        showResult(true, (data.message || "OK") + extra);
-                        window.setTimeout(function () {
-                            window.location.href = "dashboard.html";
-                        }, 700);
-                    })
-                    .catch(function () {
-                        showResult(false, "Could not reach the server.");
-                    });
-            }
-
-            document.getElementById("submitTokenBtn").addEventListener("click", function () {
-                checkIn(tokenInput.value);
-            });
-
-            const readerId = "reader";
-            const html5 = new Html5Qrcode(readerId);
-            const config = { fps: 10, qrbox: { width: 260, height: 260 } };
-
-            function cameraPriority(cam) {
-                const lbl = (cam && cam.label ? cam.label : "").toLowerCase();
-                if (lbl.indexOf("back") !== -1 || lbl.indexOf("rear") !== -1 || lbl.indexOf("environment") !== -1) {
-                    return 0;
-                }
-                if (lbl.indexOf("front") !== -1 || lbl.indexOf("user") !== -1 || lbl.indexOf("facetime") !== -1) {
-                    return 2;
-                }
-                return 1;
-            }
-
-            function startScanner(cameraId) {
-                return html5.start(
-                    cameraId,
-                    config,
-                    function (decodedText) {
-                        checkIn(decodedText);
-                    },
-                    function () {}
-                );
-            }
-
-            Html5Qrcode.getCameras()
-                .then(function (devices) {
-                    if (!devices || devices.length === 0) {
-                        showResult(false, "No camera found. Use manual entry.");
-                        return;
-                    }
-                    const sorted = devices.slice().sort(function (a, b) {
-                        return cameraPriority(a) - cameraPriority(b);
-                    });
-                    startScanner(sorted[0].id).catch(function (err) {
-                        showResult(false, "Camera error: " + (err && err.message ? err.message : String(err)));
-                    });
-                })
-                .catch(function () {
-                    showResult(false, "Camera permission denied or not available. Use manual entry.");
-                });
-        })();
-    </script>
+    <script src="auth.js?v=20260917-3"></script>
+    <script src="security_scan.js?v=20260922-2"></script>
 </body>
 </html>

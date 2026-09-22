@@ -6,16 +6,29 @@
 function appointment_office_map(): array
 {
     return [
-        "CCI" => "College of Computing and Informatics",
-        "COED" => "College of Education",
-        "CEA" => "College of Engineering and Architecture",
-        "CIT" => "College of Industrial Technology",
-        "CAS" => "College of Arts and Sciences",
+        "IT" => "IT Department",
+        "IS" => "IS Department",
+        "CS" => "CS Department",
+        "DEANS" => "Dean's Office",
+        "TECH_SUPPORT" => "Tech Support",
     ];
 }
 
 function appointment_office_label(string $code): string
 {
     $map = appointment_office_map();
-    return $map[$code] ?? $code;
+    if (isset($map[$code])) {
+        return $map[$code];
+    }
+
+    // Preserve readable labels for historical records without allowing these legacy
+    // codes on new appointments.
+    $legacy = [
+        "CCI" => "College of Computing and Informatics (legacy)",
+        "COED" => "College of Education (legacy)",
+        "CEA" => "College of Engineering and Architecture (legacy)",
+        "CIT" => "College of Industrial Technology (legacy)",
+        "CAS" => "College of Arts and Sciences (legacy)",
+    ];
+    return $legacy[$code] ?? $code;
 }
